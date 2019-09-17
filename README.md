@@ -3,7 +3,7 @@ Implementation of knowledge tracing algorithms:
 - [DAS3H](https://arxiv.org/pdf/1905.06873.pdf)
 - [DKT](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
 
-To install requirements in a conda environment:
+Install requirements in a conda environment, [PyTorch](https://pytorch.org) and the rest:
 
 ```
 pip install -r requirements.txt
