@@ -9,27 +9,33 @@ Install requirements in a conda environment, [PyTorch](https://pytorch.org) and 
 pip install -r requirements.txt
 ```
 
+The code supports four datasets:
+- [Assistments 2012-2013](https://sites.google.com/site/assistmentsdata/home/2012-13-school-data-with-affect) (assistments12)
+- [Assistments Challenge 2017](https://sites.google.com/view/assistmentsdatamining) (assistments17)
+- [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
+- [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
+
 To prepare a dataset:
 
 ```
-python prepare_data.py --dataset assistments17 --remove_nan_skills
+python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 ```
 
 To encode a sparse matrix with certain features on a dataset:
 
 ```
-python encode_das3h.py --dataset assistments17 --users --items --skills --wins --attempts --tw_kc
+python encode_das3h.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
 ```
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_das3h.py:
 
 ```
-python train_das3h.py data/assistments17/X-uiswat1.npz --dataset assistments17
+python train_das3h.py data/<dataset codename>/X-uiswat1.npz --dataset <dataset codename>
 ```
 
 To train a DKT model:
 
 ```
-python train_dkt.py --dataset assistments17
+python train_dkt.py --dataset <dataset codename>
 ```
 
