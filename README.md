@@ -24,13 +24,13 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 To encode a sparse matrix with certain features on a dataset:
 
 ```
-python encode_das3h.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
+python encode_lr.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
 ```
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_das3h.py:
 
 ```
-python train_das3h.py data/<dataset codename>/X-uiswat1.npz --dataset <dataset codename>
+python train_lr.py data/<dataset codename>/X-uiswat1.npz --dataset <dataset codename>
 ```
 
 To train a DKT model:
