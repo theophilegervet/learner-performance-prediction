@@ -9,10 +9,16 @@ Install requirements in a conda environment, [PyTorch](https://pytorch.org) and 
 pip install -r requirements.txt
 ```
 
+To prepare a given dataset:
+
+```
+python prepare_data.py --dataset assistments17 --remove_nan_skills
+```
+
 To encode sparse matrix with given features on given dataset:
 
 ```
-python encode_das3h.py --dataset assistments17 --users --items --skills --wins --tw_kc
+python encode_das3h.py --dataset assistments17 --users --items --skills --wins --attempts --tw_kc
 ```
 
 To train a logistic regression model with given sparse feature matrix encoded through encode_das3h.py:
@@ -20,3 +26,10 @@ To train a logistic regression model with given sparse feature matrix encoded th
 ```
 python train_das3h.py data/assistments17/X-uiswat1.npz --dataset assistments17
 ```
+
+To train DKT:
+
+```
+python train_dkt.py --dataset assistments17
+```
+
