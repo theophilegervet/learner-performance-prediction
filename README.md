@@ -15,7 +15,7 @@ The code supports four datasets:
 - [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
 - [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
 
-To prepare a dataset:
+Put a dataset under data/<dataset codename>/data.csv for Assistments dataset, and data/<dataset codename>/data.txt for the others. To prepare a dataset:
 
 ```
 python prepare_data.py --dataset <dataset codename> --remove_nan_skills
