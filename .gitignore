@@ -1,2 +1,5 @@
+.*
+!/.gitignore
+__pycache__
 data
 runs
