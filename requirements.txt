@@ -1,0 +1,5 @@
+jupyter
+pandas
+sklearn
+tensorboardX
+tensorboard
