@@ -17,7 +17,7 @@ The code supports the following datasets:
 - [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
 - [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
 
-| Dataset          | #Users   | # Items | # Skills | # Interactions | Mean # skills/item | Timestamps | Median length |
+| Dataset          | # Users  | # Items | # Skills | # Interactions | Mean # skills/item | Timestamps | Median length |
 | ---------------- | -------- | ------- | -------- | -------------- | ------------------ | ---------- | ------------- |
 | assistments09    | 4,163    | 17,551  | 123      | 283,100        | 1.20               | No         | 26            |
 | assistments12    | 29,018   | 53,086  | 265      | 2,711,602      | 1.00               | Yes        | 49            |
