@@ -32,16 +32,16 @@ Place Assistments datasets under `data/<dataset codename>/data.csv` and the othe
 python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 ```
 
-To encode a sparse matrix with certain features on a dataset:
+To encode a sparse feature matrix:
 
 ```
-python encode_lr.py --dataset <dataset codename> --users --items --skills --wins --attempts --tw_kc
+python encode_lr.py --dataset <dataset codename> --users --items --skills --wins --attempts --time_windows
 ```
 
-To train a logistic regression model with a sparse feature matrix encoded through encode_das3h.py:
+To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py data/<dataset codename>/X-uiswat1.npz --dataset <dataset codename>
+python train_lr.py data/<dataset codename>/X-uiswa_tw.npz --dataset <dataset codename>
 ```
 
 To train a DKT model:
