@@ -2,7 +2,6 @@ import os
 import torch
 import argparse
 import pandas as pd
-from scipy import sparse
 from random import shuffle
 from sklearn.metrics import roc_auc_score
 
@@ -88,10 +87,10 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, train_spli
 
         # Training
         for inputs, labels in train_batches:
+            # TODO add pack_padded_sequence
             inputs, labels = inputs.cuda(), labels.cuda()
             batch_size, length = inputs.shape
             preds = torch.zeros(batch_size, length, model.num_items).cuda()
-            # TODO add pack_padded_sequence
             
             # Truncated backprop through time
             for i in range(0, length, bptt):
