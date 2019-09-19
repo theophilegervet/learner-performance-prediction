@@ -1,12 +1,13 @@
 import os
-import torch
 import argparse
 import pandas as pd
 from random import shuffle
 from sklearn.metrics import roc_auc_score
 
+import torch
 import torch.nn as nn
 from torch.optim import Adam
+from torch.nn.utils.rnn import pad_sequence
 
 from dkt import DKT
 from utils.misc import Logger, Metrics
@@ -22,20 +23,18 @@ def prepare_batches(data, batch_size):
     Output:
         batches (list of tuples of torch Tensor)
     """
-    data = [(u_df["item_id"].values, u_df["correct"].values) for _, u_df in df.groupby("user_id")]
     shuffle(data)
     batches = []
-    
+
     for k in range(0, len(data), batch_size):
-        batch = data[k:k+batch_size]
-        max_length = max(map(lambda x: len(x[0]), batch))
+        batch = data[k:k + batch_size]
 
-        inputs = torch.zeros(len(batch), max_length, dtype=torch.long) # Pad with 0
-        labels = -torch.ones(len(batch), max_length, dtype=torch.long) # Pad with -1
+        item_ids, labels = zip(*batch)
+        item_ids = list(map(lambda x: torch.tensor(x + 1, dtype=torch.long), item_ids))
+        labels = list(map(lambda x: torch.tensor(x, dtype=torch.long), labels))
 
-        for i, (item_ids, corrects) in enumerate(batch):
-            inputs[i, :len(item_ids)] = torch.tensor(item_ids) + 1 # Pad with 0
-            labels[i, :len(corrects)] = torch.tensor(corrects)
+        inputs = pad_sequence(item_ids, batch_first=True, padding_value=0) # Pad with 0
+        labels = pad_sequence(labels, batch_first=True, padding_value=-1)  # Pad with -1
 
         batches.append([inputs, labels])
         
@@ -87,7 +86,6 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, train_spli
 
         # Training
         for inputs, labels in train_batches:
-            # TODO add pack_padded_sequence
             inputs, labels = inputs.cuda(), labels.cuda()
             batch_size, length = inputs.shape
             preds = torch.zeros(batch_size, length, model.num_items).cuda()
@@ -111,9 +109,9 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, train_spli
             metrics.store({'auc/train': train_auc})
             
             # Logging
-            if step % 10 == 0:
+            if step % 20 == 0:
                 for k, v in metrics.average().items():
-                    logger.log_scalar(k, v, step)
+                    logger.log_scalar(k, v, step * batch_size)
                 print(f'Step {step}, loss={loss.item()}, train_auc={train_auc}')
             
         # Validation
@@ -131,7 +129,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DKT.')
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--logdir', type=str, default='runs/dkt')
-    parser.add_argument('--embed-size', type=int, default=100)
+    parser.add_argument('--embed_items', action='store_true')
+    parser.add_argument('--embed_size', type=int, default=100)
     parser.add_argument('--hid_size', type=int, default=100)
     parser.add_argument('--drop_prob', type=float, default=0)
     parser.add_argument('--batch_size', type=int, default=10)
@@ -143,10 +142,10 @@ if __name__ == "__main__":
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
     
     num_items = df["item_id"].nunique() + 1 # Add padding index
-    model = DKT(num_items, args.embed_size, args.hid_size, args.drop_prob).cuda()
+    model = DKT(num_items, args.embed_items, args.embed_size, args.hid_size, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
     
-    param_str = f'{args.batch_size}, {args.drop_prob}'
+    param_str = f'{args.dataset}, embed={args.embed_items}, dropout={args.drop_prob}'
     logger = Logger(os.path.join(args.logdir, param_str))
     
     train(df, model, optimizer, logger, args.num_epochs, args.bptt, args.batch_size)

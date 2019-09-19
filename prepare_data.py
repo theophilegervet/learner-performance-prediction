@@ -6,10 +6,10 @@ import os
 
 
 def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills):
-    """Preprocess ASSISTments 2012-2013 or ASSISTments Challenge 2017 dataset.
+    """Preprocess ASSISTments dataset.
     
     Arguments:
-        data_name: "assistments12" or "assistments17"
+        data_name: "assistments09", "assistments12", "assistments15" or "assistments17"
         min_interactions_per_user (int): minimum number of interactions per student
         remove_nan_skills (bool): if True, remove interactions with no skill tag
 
@@ -19,19 +19,35 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
     data_path = os.path.join("data", data_name)
-    df = pd.read_csv(os.path.join(data_path, "data.csv"))
-    
-    if data_name == "assistments17":
-        df = df.rename(columns={"startTime": "timestamp",
-                                "studentId": "user_id",
-                                "problemId": "problem_id",
-                                "skill": "skill_id"})
+    df = pd.read_csv(os.path.join(data_path, "data.csv"), encoding="ISO-8859-1")
+
+    # Only 2012 and 2017 versions have timestamps
+    if data_name == "assistments09":
+        df = df.rename(columns={"problem_id": "item_id"})
+        df["timestamp"] = np.zeros(len(df), dtype=np.int64)
     elif data_name == "assistments12":
+        df = df.rename(columns={"problem_id": "item_id"})
         df["timestamp"] = pd.to_datetime(df["start_time"])
         df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
-    
-    df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-    df.sort_values(by="timestamp", inplace=True)
+        df["timestamp"] = df["timestamp"] - df["timestamp"].min()
+    elif data_name == "assistments15":
+        df = df.rename(columns={"sequence_id": "item_id"})
+        df["skill_id"] = df["item_id"]
+        df["timestamp"] = np.zeros(len(df), dtype=np.int64)
+    elif data_name == "assistments17":
+        df = df.rename(columns={"startTime": "timestamp",
+                                "studentId": "user_id",
+                                "problemId": "item_id",
+                                "skill": "skill_id"})
+        df["timestamp"] = df["timestamp"] - df["timestamp"].min()
+
+    # Sort data temporally
+    if data_name in ["assistments12", "assistments17"]:
+        df.sort_values(by="timestamp", inplace=True)
+    elif data_name == "assistments09":
+        df.sort_values(by="order_id", inplace=True)
+    elif data_name == "assistments15":
+        df.sort_values(by="log_id", inplace=True)
 
     # Filter too short sequences
     df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
@@ -46,7 +62,7 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
         df.ix[df["skill_id"].isnull(), "skill_id"] = -1
 
     df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1]
-    df["item_id"] = np.unique(df["problem_id"], return_inverse=True)[1]
+    df["item_id"] = np.unique(df["item_id"], return_inverse=True)[1]
     df["skill_id"] = np.unique(df["skill_id"], return_inverse=True)[1]
 
     # Build Q-matrix
@@ -66,7 +82,7 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
 
 
 def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_nan_skills):
-    """Preprocess KDD Cup 2010 datasets.
+    """Preprocess KDD Cup 2010 dataset.
 
     Arguments:
         data_name (str): "bridge_algebra06" or "algebra05"
@@ -143,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument('--remove_nan_skills', action='store_true')
     args = parser.parse_args()
 
-    if args.dataset in ["assistments12", "assistments17"]:
+    if args.dataset in ["assistments09", "assistments12", "assistments15", "assistments17"]:
         df, Q_mat = prepare_assistments(
                 data_name=args.dataset,
                 min_interactions_per_user=args.min_interactions,
