@@ -17,9 +17,9 @@ The code supports the following datasets:
 - [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
 - [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
 
-| First Header  | Second Header |
+| Dataset | # Users | # Items | # Skills | # Interactions | Mean # skills per item | Timestamps | Median length 
 | ------------- | ------------- |
-| Content Cell  | Content Cell  |
+|  | Content Cell  |
 | Content Cell  | Content Cell  |
 
 Place Assistments datasets under `data/<dataset codename>/data.csv` and the others under `data/<dataset codename>/data.txt`. To prepare a dataset:
