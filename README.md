@@ -9,8 +9,10 @@ Install [PyTorch](https://pytorch.org) in a conda environment and the remaining 
 pip install -r requirements.txt
 ```
 
-The code supports four datasets:
+The code supports the following datasets:
+- [Assistments 2009-2010](https://sites.google.com/site/assistmentsdata/home/assistment-2009-2010-data/skill-builder-data-2009-2010)
 - [Assistments 2012-2013](https://sites.google.com/site/assistmentsdata/home/2012-13-school-data-with-affect) (assistments12)
+- [Assistments 2015](https://sites.google.com/site/assistmentsdata/home/2015-assistments-skill-builder-data)
 - [Assistments Challenge 2017](https://sites.google.com/view/assistmentsdatamining) (assistments17)
 - [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
 - [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
