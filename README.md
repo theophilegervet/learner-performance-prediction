@@ -27,7 +27,7 @@ The code supports the following datasets:
 | assistments15    | 19,840   | 100     | 100      | 683,801        | 1.00               | No         | 20            |
 | assistments17    | 1,709    | 3,162   | 102      | 936,574        | 1.23               | Yes        | 441           |
 | bridge_algebra06 | 1,146    | 129,263 | 493      | 1,817,476      | 1.01               | Yes        | 1,362         |
-| algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574
+| algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574           |
 
 To use a dataset, download the data from one of the links above and place the main file under `data/<dataset codename>/data.csv` if it is an ASSISTments dataset and under `data/<dataset codename>/data.txt` otherwise. To preprocess a dataset:
 
@@ -61,5 +61,9 @@ python train_dkt.py --dataset <dataset codename> --embed_inputs --drop_prob 0.5
 
 ## Performance
 
-TODO
+| Algorithm | assistments09 | assistments12 | assistments15 | assistments17 | bridge_algebra06 | algebra05 |
+| --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
+| IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
+| PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
+| DKT       |               |               |               | 0.73          |                  |           |
 
