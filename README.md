@@ -65,9 +65,10 @@ python train_dkt.py --dataset <dataset codename> --embed_inputs --drop_prob 0.5
 | --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
 | IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
 | PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
+| DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
 | DKT       |               |               |               | 0.73          |                  |           |
 
 Legend for results in table:
-- IRT: `python encode_lr.py --dataset <dataset codename> --user --item`
-- PFA: `python encode_lr.py --dataset <dataset codename> --user --item --skills --wins --attempts`
-- DAS3H: `python encode_lr.py --dataset <dataset codename> --user --item --skills --wins --attempts --time_windows`
+- IRT: `--user --item`
+- PFA: `--user --item --skills --wins --attempts`
+- DAS3H: `--user --item --skills --wins --attempts --time_windows`
