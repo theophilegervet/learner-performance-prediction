@@ -35,7 +35,7 @@ To use a dataset, download the data from one of the links above and place the ma
 python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 ```
 
-## Training an algorithm
+## Training
 
 #### Logistic regression
 
