@@ -47,6 +47,6 @@ python train_lr.py data/<dataset codename>/X-uiswa_tw.npz --dataset <dataset cod
 To train a DKT model:
 
 ```
-python train_dkt.py --dataset <dataset codename>
+python train_dkt.py --dataset <dataset codename> --embed_inputs --drop_prob 0.5
 ```
 
