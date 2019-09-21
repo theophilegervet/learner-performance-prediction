@@ -1,9 +1,12 @@
 # kt-algos
-Implementation of knowledge tracing algorithms:
+
+Simple and performant implementations of knowledge tracing algorithms:
 - [DAS3H](https://arxiv.org/pdf/1905.06873.pdf)
 - [DKT](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
 
-Install [PyTorch](https://pytorch.org) in a conda environment and the remaining requirements:
+## Setup
+
+In a new conda environment, install [PyTorch](https://pytorch.org) and the remaining requirements:
 
 ```
 pip install -r requirements.txt
@@ -24,15 +27,19 @@ The code supports the following datasets:
 | assistments15    | 19,840   | 100     | 100      | 683,801        | 1.00               | No         | 20            |
 | assistments17    | 1,709    | 3,162   | 102      | 936,574        | 1.23               | Yes        | 441           |
 | bridge_algebra06 | 1,146    | 129,263 | 493      | 1,817,476      | 1.01               | Yes        | 1,362         |
-| algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574
+| algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574           |
 
-Place Assistments datasets under `data/<dataset codename>/data.csv` and the others under `data/<dataset codename>/data.txt`. To prepare a dataset:
+To use a dataset, download the data from one of the links above and place the main file under `data/<dataset codename>/data.csv` if it is an ASSISTments dataset and under `data/<dataset codename>/data.txt` otherwise. To preprocess a dataset:
 
 ```
 python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 ```
 
-To encode a sparse feature matrix:
+## Training
+
+#### Logistic regression
+
+To encode a sparse feature matrix with specified features:
 
 ```
 python encode_lr.py --dataset <dataset codename> --users --items --skills --wins --attempts --time_windows
@@ -44,9 +51,24 @@ To train a logistic regression model with a sparse feature matrix encoded throug
 python train_lr.py data/<dataset codename>/X-uiswa_tw.npz --dataset <dataset codename>
 ```
 
+#### Deep knowledge tracing
+
 To train a DKT model:
 
 ```
-python train_dkt.py --dataset <dataset codename>
+python train_dkt.py --dataset <dataset codename> --embed_inputs --drop_prob 0.5
 ```
 
+## Results
+
+| Algorithm | assistments09 | assistments12 | assistments15 | assistments17 | bridge_algebra06 | algebra05 |
+| --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
+| IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
+| PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
+| DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
+| DKT       |               |               |               |               |                  |           |
+
+Legend for results in table:
+- IRT: `--user --item`
+- PFA: `--user --item --skills --wins --attempts`
+- DAS3H: `--user --item --skills --wins --attempts --time_windows`
