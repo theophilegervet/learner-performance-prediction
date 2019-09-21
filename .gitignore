@@ -1,4 +1,5 @@
 .*
+*.ipynb
 !/.gitignore
 __pycache__
 run.sh
