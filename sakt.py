@@ -80,15 +80,17 @@ class SAKT(nn.Module):
             embed_size (int): Input embedding dimension
             hid_size (int): Attention dot-product dimension
             num_heads (int): Number of parallel attention heads
+            encode_pos (bool): If True, add positional encoding
             drop_prob (float): Dropout probability
     """
-    def __init__(self, num_items, embed_inputs, embed_size, hid_size, num_heads, drop_prob):
+    def __init__(self, num_items, embed_inputs, embed_size, hid_size, num_heads, encode_pos, drop_prob):
         super(SAKT, self).__init__()
         self.embed_inputs = embed_inputs
+        self.encode_pos = encode_pos
         
         if self.embed_inputs:
             self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
-            self.input_embeds.weight.requires_grad = False
+            #self.input_embeds.weight.requires_grad = False
             self.attn = MultiHeadedAttention(embed_size, hid_size, num_heads, drop_prob)
         else:
             self.attn = MultiHeadedAttention(2 * num_items + 1, hid_size, num_heads, drop_prob)
@@ -101,11 +103,15 @@ class SAKT(nn.Module):
         else:
             embeds = F.one_hot(items, 2 * self.num_items + 1).float()
 
-        pe = positional_encoding(embeds.size(-2), embeds.size(-1))
+        if self.encode_pos:
+            pe = positional_encoding(embeds.size(-2), embeds.size(-1))
+            if items.is_cuda:
+                pe = pe.cuda()
+            embeds = embeds + pe
+
         mask = future_mask(items.size(1))
         if items.is_cuda:
-            pe = pe.cuda()
             mask = mask.cuda()
-        embeds = embeds + pe
+
         out = self.attn(embeds, embeds, embeds, mask)
         return self.out(out)

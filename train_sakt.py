@@ -69,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--hid_size', type=int, default=200)
     parser.add_argument('--num_heads', type=int, default=4)
+    parser.add_argument('--encode_pos', action='store_true')
     parser.add_argument('--drop_prob', type=float, default=0.2)
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--lr', type=float, default=1e-3)
@@ -78,11 +79,11 @@ if __name__ == "__main__":
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
     
     model = SAKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
-                 args.num_heads, args.drop_prob).cuda()
+                 args.num_heads, args.encode_pos, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
     
     param_str = (f'{args.dataset}, embed={args.embed_inputs}, dropout={args.drop_prob}, batch_size={args.batch_size} '
-                 f'embed_size={args.embed_size}, hid_size={args.hid_size}')
+                 f'embed_size={args.embed_size}, hid_size={args.hid_size}, encode_pos={args.encode_pos}')
     logger = Logger(os.path.join(args.logdir, param_str))
     
     train(df, model, optimizer, logger, args.num_epochs, args.batch_size)
