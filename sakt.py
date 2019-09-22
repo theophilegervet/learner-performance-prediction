@@ -26,6 +26,18 @@ def attention(query, key, value, mask=None, dropout=None):
     if dropout is not None:
         prob_attn = dropout(prob_attn)
     return torch.matmul(prob_attn, value), prob_attn
+
+
+def positional_encoding(seq_length, embed_size):
+    """Create sinusoidal positional encoding to be added to embedding, each dimension is a sine
+    wave with a different frequency and offset.
+    """
+    pe = torch.zeros(seq_length, embed_size, dtype=torch.float)
+    position = torch.arange(seq_length).unsqueeze(1).float()
+    div_term = torch.exp(torch.arange(0, embed_size, 2).float() * -(math.log(1e4) / embed_size))
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+    return pe
     
     
 class MultiHeadedAttention(nn.Module):
@@ -35,7 +47,8 @@ class MultiHeadedAttention(nn.Module):
         self.output_size = output_size
         self.head_size = output_size // num_heads
         self.num_heads = num_heads
-        self.linears = clone(nn.Linear(input_size, output_size), 3)
+        self.input_linears = clone(nn.Linear(input_size, output_size), 3)
+        self.output_linear = nn.Linear(output_size, output_size)
         self.dropout = nn.Dropout(p=drop_prob)
         
     def forward(self, query, key, value, mask=None):
@@ -47,16 +60,16 @@ class MultiHeadedAttention(nn.Module):
             
         # Project inputs
         query, key, value = [l(x).view(batch_size, seq_length, self.num_heads, self.head_size).transpose(1, 2)
-                             for l, x in zip(self.linears, (query, key, value))]
+                             for l, x in zip(self.input_linears, (query, key, value))]
         
         # Apply attention 
         out, self.prob_attn = attention(query, key, value, mask=mask, dropout=self.dropout)
         out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.output_size)
         
         # Apply non-linearity
-        # TODO maybe add ffw network here
-        out = self.dropout(F.relu(out))
+        out = self.dropout(F.relu(self.output_linear(out)))
         return out
+
 
 class SAKT(nn.Module):
     """Self-attentive knowledge tracing.
@@ -87,9 +100,12 @@ class SAKT(nn.Module):
             embeds = self.input_embeds(items)
         else:
             embeds = F.one_hot(items, 2 * self.num_items + 1).float()
-            
+
+        pe = positional_encoding(embeds.size(-2), embeds.size(-1))
         mask = future_mask(items.size(1))
         if items.is_cuda:
+            pe = pe.cuda()
             mask = mask.cuda()
+        embeds = embeds + pe
         out = self.attn(embeds, embeds, embeds, mask)
         return self.out(out)

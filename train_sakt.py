@@ -69,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--hid_size', type=int, default=200)
     parser.add_argument('--num_heads', type=int, default=4)
-    parser.add_argument('--drop_prob', type=float, default=0.1)
+    parser.add_argument('--drop_prob', type=float, default=0.2)
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--num_epochs', type=int, default=25)
