@@ -66,7 +66,7 @@ python train_dkt.py --dataset <dataset codename> --embed_inputs --drop_prob 0.5
 | IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
 | PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
 | DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
-| DKT       |               |               |               |               |                  |           |
+| DKT       | 0.76          |               | 0.68          | 0.70          |                  |           |
 
 Legend for results in table:
 - IRT: `--user --item`
