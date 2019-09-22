@@ -2,7 +2,6 @@ import os
 import argparse
 import pandas as pd
 
-import torch
 import torch.nn as nn
 from torch.optim import Adam
 

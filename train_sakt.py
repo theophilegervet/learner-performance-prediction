@@ -2,7 +2,6 @@ import os
 import argparse
 import pandas as pd
 
-import torch
 import torch.nn as nn
 from torch.optim import Adam
 
@@ -77,7 +76,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
-    num_items, embed_inputs, embed_size, hid_size, num_heads, drop_prob
     
     model = SAKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
                  args.num_heads, args.drop_prob).cuda()

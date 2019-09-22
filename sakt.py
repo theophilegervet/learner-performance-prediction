@@ -89,5 +89,7 @@ class SAKT(nn.Module):
             embeds = F.one_hot(items, 2 * self.num_items + 1).float()
             
         mask = future_mask(items.size(1))
+        if items.is_cuda:
+            mask = mask.cuda()
         out = self.attn(embeds, embeds, embeds, mask)
         return self.out(out)
