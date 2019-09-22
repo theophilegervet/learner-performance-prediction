@@ -76,7 +76,7 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 | PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
 | DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
 | DKT       | 0.76          |               | 0.68          | 0.70          |                  |           |
-| SAKT      |               |               |               |               |                  |           |
+| SAKT      | 0.75          |               | 0.70          | 0.71          |                  |           |
 
 Legend for results in table:
 - IRT: `--user --item`
