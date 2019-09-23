@@ -49,7 +49,21 @@ python encode_lr.py --dataset <dataset codename> --users --items --skills --wins
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py data/<dataset codename>/X-uiswa_tw.npz --dataset <dataset codename>
+python train_lr.py data/<dataset codename>/X-lr-uiswa_tw.npz --dataset <dataset codename>
+```
+
+#### Feedforward neural network
+
+To encode a dense feature matrix with specified features:
+
+```
+python encode_ffw.py --dataset <dataset codename> --users --total_past --items_past --skills_past
+```
+
+To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
+
+```
+python train_ffw.py data/<dataset codename>/X-ffw-utis.npz --dataset <dataset codename>
 ```
 
 #### Deep knowledge tracing
