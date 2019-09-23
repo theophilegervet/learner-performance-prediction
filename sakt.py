@@ -90,14 +90,14 @@ class SAKT(nn.Module):
         
         if self.embed_inputs:
             self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
-            #self.input_embeds.weight.requires_grad = False
+            self.input_embeds.weight.requires_grad = False
             self.attn = MultiHeadedAttention(embed_size, hid_size, num_heads, drop_prob)
         else:
             self.attn = MultiHeadedAttention(2 * num_items + 1, hid_size, num_heads, drop_prob)
         
         self.out = nn.Linear(hid_size, num_items)
         
-    def forward(self, items, hidden=None):
+    def forward(self, items):
         if self.embed_inputs:
             embeds = self.input_embeds(items)
         else:
@@ -115,3 +115,17 @@ class SAKT(nn.Module):
 
         out = self.attn(embeds, embeds, embeds, mask)
         return self.out(out)
+
+
+class FeedforwardBaseline(nn.Module):
+    def __init__(self, num_items, embed_size, hid_size, drop_prob):
+        super(FeedforwardBaseline, self).__init__()
+        self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
+        self.input_embeds.weight.requires_grad = False
+        self.lin1 = nn.Linear(embed_size, hid_size)
+        self.lin2 = nn.Linear(hid_size, num_items)
+        self.dropout = nn.Dropout(p=drop_prob)
+
+    def forward(self, items):
+        embeds = self.input_embeds(items)
+        return self.lin2(self.dropout(F.relu(self.lin1(embeds))))

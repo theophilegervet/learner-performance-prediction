@@ -20,7 +20,7 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
         df (pandas DataFrame): output by prepare_data.py
         Q_mat (sparse array): q-matrix, output by prepare_data.py
         active_features (list of str): features
-        time_windows (bool): if True, encode past wins/fails/attempts with time windows to
+        time_windows (bool): if True, encode past wins/attempts with time windows to
             preserve temporal information
 
     Output:
@@ -46,8 +46,8 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
     if 'skills' in active_features:
         features["skills"] = sparse.csr_matrix(np.empty((0, num_skills)))
 
-    # Past attempts, wins and fails features
-    for key in ['attempts', 'wins', 'fails']:
+    # Past attempts and wins features
+    for key in ['attempts', 'wins']:
         if key in active_features:
             if time_windows:
                 features[key] = sparse.csr_matrix(np.empty((0, (num_skills + 2) * num_windows)))
@@ -57,7 +57,6 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
     # Build feature rows by iterating over users
     for user_id in df["user_id"].unique():
         df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct"]].copy()
-        df_user.sort_values(by="timestamp", inplace=True)
         df_user = df_user.values
         num_items_user = df_user.shape[0]
 
@@ -98,8 +97,8 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 # Past attempts for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                item_ids_one_hot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
-                tmp = np.cumsum(item_ids_one_hot, 0)[np.arange(num_items_user), df_user[:, 1]]
+                item_ids_onehot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
+                tmp = np.cumsum(item_ids_onehot, 0)[np.arange(num_items_user), df_user[:, 1]]
                 attempts[:, -2] = phi(np.concatenate((np.zeros(1), tmp))[:-1])
 
                 # Past attempts for all items
@@ -141,8 +140,8 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 # Past wins for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                item_ids_one_hot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
-                tmp = np.cumsum(item_ids_one_hot * df_user[:, 3].reshape(-1, 1), 0)
+                item_ids_onehot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
+                tmp = np.cumsum(item_ids_onehot * df_user[:, 3].reshape(-1, 1), 0)
                 tmp = tmp[np.arange(num_items_user), df_user[:, 1]]
                 attempts[:, -2] = phi(np.concatenate((np.zeros(1), tmp))[:-1])
 
