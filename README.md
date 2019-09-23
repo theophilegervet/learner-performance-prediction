@@ -23,10 +23,10 @@ The code supports the following datasets:
 
 | Dataset          | # Users  | # Items | # Skills | # Interactions | Mean # skills/item | Timestamps | Median length |
 | ---------------- | -------- | ------- | -------- | -------------- | ------------------ | ---------- | ------------- |
-| assistments09    | 4,163    | 17,551  | 123      | 283,100        | 1.20               | No         | 26            |
+| assistments09    | 3,241    | 26,634  | 124      | 397,137        | 1.20               | No         | 26            |
 | assistments12    | 29,018   | 53,086  | 265      | 2,711,602      | 1.00               | Yes        | 49            |
-| assistments15    | 19,840   | 100     | 100      | 683,801        | 1.00               | No         | 20            |
-| assistments17    | 1,709    | 3,162   | 102      | 936,574        | 1.23               | Yes        | 441           |
+| assistments15    | 14,567   | 100     | 100      | 658,887        | 1.00               | No         | 20            |
+| assistments17    | 1,708    | 3,162   | 102      | 942,814        | 1.23               | Yes        | 441           |
 | bridge_algebra06 | 1,146    | 129,263 | 493      | 1,817,476      | 1.01               | Yes        | 1,362         |
 | algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574           |
 
@@ -75,7 +75,7 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 | IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
 | PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
 | DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
-| DKT       | 0.76          |               | 0.68          | 0.70          |                  |           |
+| DKT       |               |               |               |               |                  |           |
 | SAKT      |               |               |               |               |                  |           |
 
 Legend for results in table:
