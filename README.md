@@ -63,7 +63,7 @@ python encode_ffw.py --dataset <dataset codename> --total --items --skills
 To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
 
 ```
-python train_ffw.py data/<dataset codename>/X-ffw-tis.npz --dataset <dataset codename>
+python train_ffw.py data/<dataset codename>/X-ffw-tsi.npz --dataset <dataset codename>
 ```
 
 #### Deep knowledge tracing
