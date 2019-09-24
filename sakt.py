@@ -97,20 +97,20 @@ class SAKT(nn.Module):
         
         self.out = nn.Linear(hid_size, num_items)
         
-    def forward(self, items):
+    def forward(self, inputs):
         if self.embed_inputs:
-            embeds = self.input_embeds(items)
+            embeds = self.input_embeds(inputs)
         else:
-            embeds = F.one_hot(items, 2 * self.num_items + 1).float()
+            embeds = F.one_hot(inputs, 2 * self.num_items + 1).float()
 
         if self.encode_pos:
             pe = positional_encoding(embeds.size(-2), embeds.size(-1))
-            if items.is_cuda:
+            if inputs.is_cuda:
                 pe = pe.cuda()
             embeds = embeds + pe
 
-        mask = future_mask(items.size(1))
-        if items.is_cuda:
+        mask = future_mask(inputs.size(1))
+        if inputs.is_cuda:
             mask = mask.cuda()
 
         out = self.attn(embeds, embeds, embeds, mask)
@@ -126,6 +126,6 @@ class FeedforwardBaseline(nn.Module):
         self.lin2 = nn.Linear(hid_size, num_items)
         self.dropout = nn.Dropout(p=drop_prob)
 
-    def forward(self, items):
-        embeds = self.input_embeds(items)
+    def forward(self, inputs):
+        embeds = self.input_embeds(inputs)
         return self.lin2(self.dropout(F.relu(self.lin1(embeds))))

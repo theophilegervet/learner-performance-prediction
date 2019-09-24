@@ -163,7 +163,7 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Encode datasets.')
+    parser = argparse.ArgumentParser(description='Encode sparse feature matrix for logistic regression.')
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--users', action='store_true')
     parser.add_argument('--items', action='store_true')
@@ -184,4 +184,4 @@ if __name__ == "__main__":
     df = pd.read_csv(os.path.join(data_path, 'preprocessed_data.csv'), sep="\t")
     qmat = sparse.load_npz(os.path.join(data_path, 'q_mat.npz')).toarray()
     features = df_to_sparse(df, qmat, active_features, args.time_windows)
-    sparse.save_npz(os.path.join(data_path, f"X-{features_suffix}.npz"), features)
+    sparse.save_npz(os.path.join(data_path, f"X-lr-{features_suffix}"), features)

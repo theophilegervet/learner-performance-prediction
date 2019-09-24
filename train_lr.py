@@ -14,7 +14,7 @@ def compute_metrics(y_pred, y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train logistic regression on feature matrix.')
+    parser = argparse.ArgumentParser(description='Train logistic regression on sparse feature matrix.')
     parser.add_argument('X_file', type=str)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--iter', type=int, default=400)
@@ -27,26 +27,26 @@ if __name__ == "__main__":
     X = csr_matrix(load_npz(args.X_file))
     Q_mat = load_npz(os.path.join(data_path, "q_mat.npz"))
     
-    # Student-level train-test split
-    user_column = X[:, 0].toarray().flatten()
-    users = np.unique(user_column)
+    # Student-level train-val split
+    user_ids = X[:, 0].toarray().flatten()
+    users = np.unique(user_ids)
     np.random.shuffle(users)
     split = int(0.8 * len(users))
-    users_train, users_test = users[:split], users[split:]
+    users_train, users_val = users[:split], users[split:]
     
-    train = X[np.where(np.isin(user_column, users_train))]
-    test = X[np.where(np.isin(user_column, users_test))]
+    train = X[np.where(np.isin(user_ids, users_train))]
+    val = X[np.where(np.isin(user_ids, users_val))]
     
     # First 4 columns are the original dataset including correct in column 3
     X_train, y_train = train[:, 4:], train[:, 3].toarray().flatten()
-    X_test, y_test = test[:, 4:], test[:, 3].toarray().flatten()
+    X_val, y_val = val[:, 4:], val[:, 3].toarray().flatten()
     
     model = LogisticRegression(solver="lbfgs", max_iter=args.iter)
     model.fit(X_train, y_train)
     
     # Compute metrics
     y_pred_train = model.predict_proba(X_train)[:, 1]
-    y_pred_test = model.predict_proba(X_test)[:, 1]
+    y_pred_val = model.predict_proba(X_val)[:, 1]
     acc_train, auc_train, nll_train = compute_metrics(y_pred_train, y_train)
-    acc_test, auc_test, nll_test = compute_metrics(y_pred_test, y_test)
-    print(f"{args.dataset}, {features_suffix}, train auc = {auc_train}, test auc = {auc_test}")
+    acc_val, auc_val, nll_val = compute_metrics(y_pred_val, y_val)
+    print(f"{args.dataset}, {features_suffix}, train auc = {auc_train}, val auc = {auc_val}")

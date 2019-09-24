@@ -28,11 +28,11 @@ class DKT(nn.Module):
         self.dropout = nn.Dropout(p=drop_prob)
         self.out = nn.Linear(hid_size, num_items)
 
-    def forward(self, items, hidden=None):
+    def forward(self, inputs, hidden=None):
         if self.embed_inputs:
-            embeds = self.input_embeds(items)
+            embeds = self.input_embeds(inputs)
         else:
-            embeds = F.one_hot(items, 2 * self.num_items + 1).float()
+            embeds = F.one_hot(inputs, 2 * self.num_items + 1).float()
             
         out, hidden = self.lstm(embeds, hx=hidden)
         return self.out(self.dropout(out)), hidden

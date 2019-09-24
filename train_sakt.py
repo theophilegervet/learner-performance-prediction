@@ -5,7 +5,7 @@ import pandas as pd
 import torch.nn as nn
 from torch.optim import Adam
 
-from sakt import SAKT, FeedforwardBaseline
+from sakt import SAKT
 from utils.logger import Logger
 from utils.metrics import Metrics
 from utils.misc import *
@@ -78,9 +78,8 @@ if __name__ == "__main__":
     
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
     
-    #model = SAKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
-    #             args.num_heads, args.encode_pos, args.drop_prob).cuda()
-    model = FeedforwardBaseline(df["item_id"].nunique(), args.embed_size, args.hid_size, args.drop_prob).cuda()
+    model = SAKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
+                 args.num_heads, args.encode_pos, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
     
     param_str = (f'{args.dataset}, embed={args.embed_inputs}, dropout={args.drop_prob}, batch_size={args.batch_size} '
