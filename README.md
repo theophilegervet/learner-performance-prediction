@@ -54,7 +54,7 @@ python train_lr.py data/<dataset codename>/X-lr-uiswa_tw.npz --dataset <dataset 
 
 #### Feedforward neural network
 
-To encode a dense feature matrix with specified features:
+To encode a sparse feature matrix with specified features:
 
 ```
 python encode_ffw.py --dataset <dataset codename> --total --items --skills
