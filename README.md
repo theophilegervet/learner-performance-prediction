@@ -57,13 +57,13 @@ python train_lr.py data/<dataset codename>/X-lr-uiswa_tw.npz --dataset <dataset 
 To encode a sparse feature matrix with specified features:
 
 ```
-python encode_ffw.py --dataset <dataset codename> --total --items --skills
+python encode_ffw.py --dataset <dataset codename> --total --items --skills --num_prev_interactions=1
 ```
 
 To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
 
 ```
-python train_ffw.py data/<dataset codename>/X-ffw-tsi.npz --dataset <dataset codename>
+python train_ffw.py data/<dataset codename>/X-ffw-tsi-1.npz --dataset <dataset codename>
 ```
 
 #### Deep knowledge tracing
