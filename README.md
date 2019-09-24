@@ -88,11 +88,13 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 | --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
 | IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
 | PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
-| DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      | 
+| DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      |
+| FFW       |               |               |               |               |                  |           |
 | DKT       |               |               |               |               |                  |           |
 | SAKT      |               |               |               |               |                  |           |
 
 Legend for results in table:
-- IRT: `--user --item`
-- PFA: `--user --item --skills --wins --attempts`
-- DAS3H: `--user --item --skills --wins --attempts --time_windows`
+- IRT: logistic regression with `--user --item` flags
+- PFA: logistic regression with `--user --item --skills --wins --attempts` flags
+- DAS3H: logistic regression with `--user --item --skills --wins --attempts --time_windows` flags
+- FFW: feedforward neural network with `--total --items --skills` flags
