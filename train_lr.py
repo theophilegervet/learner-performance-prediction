@@ -17,11 +17,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train logistic regression on sparse feature matrix.')
     parser.add_argument('X_file', type=str)
     parser.add_argument('--dataset', type=str)
-    parser.add_argument('--iter', type=int, default=400)
+    parser.add_argument('--iter', type=int, default=500)
     args = parser.parse_args()
     
     data_path = os.path.join('data', args.dataset)
-    features_suffix = (args.X_file.split("-")[1]).split(".")[0]
+    features_suffix = (args.X_file.split("-")[-1]).split(".")[0]
 
     # Load sparse dataset and q-matrix
     X = csr_matrix(load_npz(args.X_file))

@@ -74,14 +74,14 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
                 for i, (item_id, ts) in enumerate(df_user[:, 1:3]):
                     # Past attempts for relevant skills
                     for skill_id in Q_mat_dict[item_id]:
-                        counts = phi(np.array(counters[user_id, skill_id].get_counters(ts)))
+                        counts = phi(np.array(counters[user_id, skill_id, "skill"].get_counters(ts)))
                         attempts[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
-                        counters[user_id, skill_id].push(ts)
+                        counters[user_id, skill_id, "skill"].push(ts)
 
                     # Past attempts for item
-                    counts = phi(np.array(counters[user_id, item_id].get_counters(ts)))
+                    counts = phi(np.array(counters[user_id, item_id, "item"].get_counters(ts)))
                     attempts[i, -2 * num_windows:-1 * num_windows] = counts
-                    counters[user_id, item_id].push(ts)
+                    counters[user_id, item_id, "item"].push(ts)
 
                     # Past attempts for all items
                     counts = phi(np.array(counters[user_id].get_counters(ts)))
@@ -113,16 +113,16 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
                 for i, (item_id, ts, correct) in enumerate(df_user[:, 1:4]):
                     # Past wins for relevant skills
                     for skill_id in Q_mat_dict[item_id]:
-                        counts = phi(np.array(counters[user_id, skill_id, "correct"].get_counters(ts)))
+                        counts = phi(np.array(counters[user_id, skill_id, "skill", "correct"].get_counters(ts)))
                         wins[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
                         if correct:
-                            counters[user_id, skill_id, "correct"].push(ts)
+                            counters[user_id, skill_id, "skill", "correct"].push(ts)
 
                     # Past wins for item
-                    counts = phi(np.array(counters[user_id, item_id, "correct"].get_counters(ts)))
+                    counts = phi(np.array(counters[user_id, item_id, "item", "correct"].get_counters(ts)))
                     wins[i, -2 * num_windows:-1 * num_windows] = counts
                     if correct:
-                        counters[user_id, item_id, "correct"].push(ts)
+                        counters[user_id, item_id, "item", "correct"].push(ts)
 
                     # Past wins for all items
                     counts = phi(np.array(counters[user_id, "correct"].get_counters(ts)))

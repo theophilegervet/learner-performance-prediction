@@ -115,17 +115,3 @@ class SAKT(nn.Module):
 
         out = self.attn(embeds, embeds, embeds, mask)
         return self.out(out)
-
-
-class FeedforwardBaseline(nn.Module):
-    def __init__(self, num_items, embed_size, hid_size, drop_prob):
-        super(FeedforwardBaseline, self).__init__()
-        self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
-        self.input_embeds.weight.requires_grad = False
-        self.lin1 = nn.Linear(embed_size, hid_size)
-        self.lin2 = nn.Linear(hid_size, num_items)
-        self.dropout = nn.Dropout(p=drop_prob)
-
-    def forward(self, inputs):
-        embeds = self.input_embeds(inputs)
-        return self.lin2(self.dropout(F.relu(self.lin1(embeds))))

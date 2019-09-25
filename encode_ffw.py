@@ -14,13 +14,14 @@ def accumulate(x):
     return np.vstack((np.zeros(x.shape[1]), np.cumsum(x, 0)))[:-1]
 
 
-def df_to_sparse(df, Q_mat, active_features):
+def df_to_sparse(df, Q_mat, active_features, num_prev_interactions):
     """Build sparse dataset from dense dataset and q-matrix.
 
     Arguments:
         df (pandas DataFrame): output by prepare_data.py
         Q_mat (sparse array): q-matrix, output by prepare_data.py
         active_features (list of str): features
+        num_prev_interactions (int): number of previous interactions to encode
 
     Output:
         sparse_df (sparse array): sparse dataset where first 4 columns are the same as in df
@@ -37,8 +38,18 @@ def df_to_sparse(df, Q_mat, active_features):
         attempts = np.zeros((num_items_user, num_items + num_skills + 1))
         wins = np.zeros((num_items_user, num_items + num_skills + 1))
 
-        item_ids_onehot = onehot_items.fit_transform(df_user[:, 0].reshape(-1, 1)).toarray()
-        skills_onehot = Q_mat[df_user[:, 0]]
+        item_ids = df_user[:, 1].reshape(-1, 1)
+        labels = df_user[:, 3].reshape(-1, 1)
+
+        item_ids_onehot = onehot_items.fit_transform(item_ids).toarray()
+        skills_onehot = Q_mat[item_ids.flatten()]
+
+        # Previous interactions (item + correctness encoding)
+        if num_prev_interactions > 0:
+            prev_interactions = np.zeros((num_items_user, num_prev_interactions))
+            encodings = (item_ids + labels * num_items).flatten()
+            for i in range(num_prev_interactions):
+                prev_interactions[i+1:, i] = encodings[:-i-1]
 
         # Past attempts for each item and total
         counts = accumulate(item_ids_onehot)
@@ -49,7 +60,6 @@ def df_to_sparse(df, Q_mat, active_features):
         attempts[:, num_items:num_items + num_skills] = phi(accumulate(skills_onehot))
 
         # Past wins for each item and total
-        labels = df_user[:, 3].reshape(-1, 1)
         counts = accumulate(item_ids_onehot * labels)
         wins[:, :num_items] = phi(counts)
         wins[:, -1] = phi(counts.sum(axis=1))
@@ -58,6 +68,8 @@ def df_to_sparse(df, Q_mat, active_features):
         wins[:, num_items:num_items + num_skills] = phi(accumulate(skills_onehot * labels))
 
         user_features = df_user
+        if num_prev_interactions > 0:
+            user_features = np.hstack((user_features, prev_interactions))
         if 'total' in active_features:
             user_features = np.hstack((user_features, attempts[:, -1:], wins[:, -1:]))
         if 'items' in active_features:
@@ -78,6 +90,8 @@ if __name__ == "__main__":
     parser.add_argument('--total', action='store_true', help='If True, add total past attempts/wins.')
     parser.add_argument('--skills', action='store_true', help='If True, add past attempts/wins per skill.')
     parser.add_argument('--items', action='store_true', help='If True, add past attempts/wins per item.')
+    parser.add_argument('--num_prev_interactions', type=int, default=1,
+                        help='Number of previous interactions to include.')
     args = parser.parse_args()
 
     data_path = os.path.join('data', args.dataset)
@@ -88,5 +102,5 @@ if __name__ == "__main__":
 
     df = pd.read_csv(os.path.join(data_path, 'preprocessed_data.csv'), sep="\t")
     Q_mat = sparse.load_npz(os.path.join(data_path, 'q_mat.npz')).toarray()
-    X = df_to_sparse(df, Q_mat, active_features)
-    sparse.save_npz(os.path.join(data_path, f"X-ffw-{features_suffix}"), X)
+    X = df_to_sparse(df, Q_mat, active_features, args.num_prev_interactions)
+    sparse.save_npz(os.path.join(data_path, f"X-ffw-{features_suffix}-{args.num_prev_interactions}"), X)

@@ -78,8 +78,6 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
     df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
 
-    return df, Q_mat
-
 
 def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_nan_skills):
     """Preprocess KDD Cup 2010 dataset.
@@ -91,7 +89,7 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
         remove_nan_skills (bool): if True, remove interactions with no skill tag
 
     Outputs:
-        df (pandas DataFrame): preprocessed ASSISTments dataset with user_id, item_id,
+        df (pandas DataFrame): preprocessed KDD Cup 2010 dataset with user_id, item_id,
             timestamp and correct features
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
@@ -149,7 +147,57 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
     df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
 
-    return df, Q_mat
+
+def prepare_squirrel_ai(min_interactions_per_user):
+    """Preprocess Squirrel AI dataset.
+
+    Arguments:
+        min_interactions_per_user (int): minimum number of interactions per student
+
+    Outputs:
+        df (pandas DataFrame): preprocessed Squirrel AI dataset with user_id, item_id,
+            timestamp and correct features
+        Q_mat (item-skill relationships sparse array): corresponding q-matrix
+    """
+    data_path = "data/squirrel-ai"
+
+    train_df = pd.read_csv(os.path.join(data_path, "studentDataFIT.csv"))
+    test_df = pd.read_csv(os.path.join(data_path, "studentDataTEST.csv"))
+    train_df, test_df = [df.rename(columns={"student_index": "user_id",
+                                            "question_index": "item_id",
+                                            "KP_index": "skill_id",
+                                            "is_correct": "correct"})
+                         for df in (train_df, test_df)]
+
+
+    for i, df in enumerate([train_df, test_df]):
+        # Timestamp in seconds
+        df["timestamp"] = df["decimalTimeAnswered"] * 3600 * 24
+        df["timestamp"] = (df["timestamp"] - df["timestamp"].min()).astype(np.int64)
+
+        # Filter too short sequences
+        df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
+
+        if i == 0:
+            df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1]
+        else:
+            df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1] + train_df["user_id"].nunique()
+
+        # Build Q-matrix
+        num_items = max(train_df["item_id"].max(), test_df["item_id"].max()) + 1
+        num_skills = max(train_df["skill_id"].max(), test_df["skill_id"].max()) + 1
+        Q_mat = np.zeros((num_items, num_skills))
+        for item_id, skill_id in df[["item_id", "skill_id"]].values:
+            Q_mat[item_id, skill_id] = 1
+
+        df = df[['user_id', 'item_id', 'timestamp', 'correct']]
+        df["correct"] = df["correct"].astype(np.int32)
+        df.reset_index(inplace=True, drop=True)
+
+        # Save data
+        suffix = "train" if i == 0 else "test"
+        sparse.save_npz(os.path.join(data_path, f"q_mat_{suffix}.npz"), sparse.csr_matrix(Q_mat))
+        df.to_csv(os.path.join(data_path, f"preprocessed_data_{suffix}.csv"), sep="\t", index=False)
 
 
 if __name__ == "__main__":
@@ -160,19 +208,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.dataset in ["assistments09", "assistments12", "assistments15", "assistments17"]:
-        df, Q_mat = prepare_assistments(
-                data_name=args.dataset,
-                min_interactions_per_user=args.min_interactions,
-                remove_nan_skills=args.remove_nan_skills)
+        prepare_assistments(
+            data_name=args.dataset,
+            min_interactions_per_user=args.min_interactions,
+            remove_nan_skills=args.remove_nan_skills)
     elif args.dataset == "bridge_algebra06":
-        df, Q_mat = prepare_kddcup10(
-                data_name="bridge_algebra06",
-                min_interactions_per_user=args.min_interactions,
-                kc_col_name="KC(SubSkills)",
-                remove_nan_skills=args.remove_nan_skills)
+        prepare_kddcup10(
+            data_name="bridge_algebra06",
+            min_interactions_per_user=args.min_interactions,
+            kc_col_name="KC(SubSkills)",
+            remove_nan_skills=args.remove_nan_skills)
     elif args.dataset == "algebra05":
-        df, Q_mat = prepare_kddcup10(
-                data_name="algebra05",
-                min_interactions_per_user=args.min_interactions,
-                kc_col_name="KC(Default)",
-                remove_nan_skills=args.remove_nan_skills)
+        prepare_kddcup10(
+            data_name="algebra05",
+            min_interactions_per_user=args.min_interactions,
+            kc_col_name="KC(Default)",
+            remove_nan_skills=args.remove_nan_skills)
+    elif args.dataset == "squirrel-ai":
+        prepare_squirrel_ai(
+            min_interactions_per_user=args.min_interactions)
