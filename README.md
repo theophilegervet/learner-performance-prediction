@@ -7,7 +7,7 @@ Simple and performant implementations of knowledge tracing algorithms:
 
 ## Setup
 
-In a new conda environment, install [PyTorch](https://pytorch.org) and the remaining requirements:
+In a new conda environment with python 3, install [PyTorch](https://pytorch.org) and the remaining requirements:
 
 ```
 pip install -r requirements.txt
@@ -43,13 +43,13 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 To encode a sparse feature matrix with specified features:
 
 ```
-python encode_lr.py --dataset <dataset codename> --users --items --skills --wins --attempts --time_windows
+python encode_lr.py --dataset <dataset codename> --items --skills --wins --attempts --time_windows
 ```
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py data/<dataset codename>/X-lr-uiswa_tw.npz --dataset <dataset codename>
+python train_lr.py data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
 ```
 
 #### Feedforward neural network
@@ -57,13 +57,13 @@ python train_lr.py data/<dataset codename>/X-lr-uiswa_tw.npz --dataset <dataset 
 To encode a sparse feature matrix with specified features:
 
 ```
-python encode_ffw.py --dataset <dataset codename> --total --items --skills --num_prev_interactions=1
+python encode_ffw.py --dataset <dataset codename> --total --items --num_prev_interactions=1
 ```
 
 To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
 
 ```
-python train_ffw.py data/<dataset codename>/X-ffw-tsi-1.npz --dataset <dataset codename>
+python train_ffw.py data/<dataset codename>/X-ffw-ti-1.npz --dataset <dataset codename>
 ```
 
 #### Deep knowledge tracing
@@ -86,15 +86,15 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 
 | Algorithm | assistments09 | assistments12 | assistments15 | assistments17 | bridge_algebra06 | algebra05 |
 | --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
-| IRT       | 0.68          | 0.70          | 0.64          | 0.67          | 0.75             | 0.76      |                  
-| PFA       | 0.76          | 0.74          | 0.68          | 0.69          | 0.80             | 0.82      | 
-| DAS3H     | -             | 0.74          | -             | 0.71          | 0.80             | 0.82      |
+| IRT       | 0.69          | 0.71          | 0.64          | 0.68          | 0.75             | 0.77      |                  
+| PFA       | 0.77          | 0.74          | 0.71          | 0.71          | 0.80             | 0.81      | 
+| DAS3H     | -             |               | -             |               |                  |           |
 | FFW       |               |               |               |               |                  |           |
 | DKT       |               |               |               |               |                  |           |
 | SAKT      |               |               |               |               |                  |           |
 
 Legend for results in table:
-- IRT: logistic regression with `--user --item` flags
-- PFA: logistic regression with `--user --item --skills --wins --attempts` flags
-- DAS3H: logistic regression with `--user --item --skills --wins --attempts --time_windows` flags
-- FFW: feedforward neural network with `--total --items --skills` flags
+- IRT: logistic regression with `--item` flags
+- PFA: logistic regression with `--item --skills --wins --attempts` flags
+- DAS3H: logistic regression with `--item --skills --wins --attempts --time_windows` flags
+- FFW: feedforward neural network with `--total --items --num_prev_interactions=1` flags
