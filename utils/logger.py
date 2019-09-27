@@ -18,10 +18,11 @@ class Logger:
         self.verbose = verbose
         self.writer = SummaryWriter(logdir)
 
-    def log_histogram(self, tag, array, step):
-        """Log histogram of numpy array of values.
+    def log_histograms(self, dic, step):
+        """Log dictionary of tensors as histograms.
         """
-        self.writer.add_histogram(tag, array, step)
+        for k, v in dic.items():
+            self.writer.add_histogram(k, v, step)
 
     def log_scalars(self, dic, step):
         """Log dictionary of scalar values.

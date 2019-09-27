@@ -17,4 +17,6 @@ class FeedForward(nn.Module):
         idxs = inputs[:, :self.num_prev_interactions].long()
         embeds = self.prev_interaction_embeds(idxs).view(inputs.size(0), -1)
         statistics = inputs[:, self.num_prev_interactions:]
-        return self.lin2(self.dropout(F.relu(self.lin1(torch.cat((embeds, statistics), 1)))))
+        out = self.lin1(torch.cat((embeds, statistics), 1))
+        out = self.lin2(self.dropout(F.relu(out)))
+        return out

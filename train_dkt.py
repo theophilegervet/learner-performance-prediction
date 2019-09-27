@@ -11,7 +11,7 @@ from utils.metrics import Metrics
 from utils.misc import *
 
 
-def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, low_gpu_mem=False):
+def train(df, model, optimizer, logger, num_epochs, bptt, batch_max_size, low_gpu_mem=False):
     """Train DKT model.
     
     Arguments:
@@ -21,7 +21,7 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, low_gpu_me
         logger: wrapper for TensorboardX logger
         num_epochs (int): number of epochs to train for
         bptt (int): length of backprop through time chunks
-        batch_size (int)
+        batch_max_size (int)
         low_gpu_mem (bool): if True, put sequence on gpu by chunks to minimize gpu memory usage
         train_split (float): proportion of users used for training
     """
@@ -32,8 +32,8 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, low_gpu_me
     step = 0
     
     for epoch in range(num_epochs):
-        train_batches = prepare_batches(train_data, batch_size)
-        val_batches = prepare_batches(val_data, batch_size)
+        train_batches = prepare_batches(train_data, batch_max_size)
+        val_batches = prepare_batches(val_data, batch_max_size)
 
         # Training
         for inputs, item_ids, labels in train_batches:
@@ -90,13 +90,17 @@ def train(df, model, optimizer, logger, num_epochs, bptt, batch_size, low_gpu_me
             
             # Logging
             if step % 20 == 0:
-                logger.log_scalars(metrics.average(), step * batch_size)
-            
+                logger.log_scalars(metrics.average(), step)
+                weights = {"weight/" + name: param for name, param in model.named_parameters()}
+                grads = {"grad/" + name: param.grad
+                         for name, param in model.named_parameters() if param.grad is not None}
+                logger.log_histograms(weights, step)
+                logger.log_histograms(grads, step)
+
         # Validation
         model.eval()
         for inputs, item_ids, labels in val_batches:
             batch_size, length = inputs.shape
-            preds = torch.zeros(batch_size, length, model.num_items)
 
             with torch.no_grad():
                 if low_gpu_mem:
@@ -138,7 +142,8 @@ if __name__ == "__main__":
     
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
 
-    model = DKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
+    num_items = int(df["item_id"].max() + 1)
+    model = DKT(num_items, args.embed_inputs, args.embed_size, args.hid_size,
                 args.num_hid_layers, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
     

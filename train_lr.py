@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train logistic regression on sparse feature matrix.')
     parser.add_argument('X_file', type=str)
     parser.add_argument('--dataset', type=str)
-    parser.add_argument('--iter', type=int, default=500)
+    parser.add_argument('--iter', type=int, default=1000)
     args = parser.parse_args()
     
     data_path = os.path.join('data', args.dataset)

@@ -21,9 +21,9 @@ class DKT(nn.Module):
         if self.embed_inputs:
             self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
             self.input_embeds.weight.requires_grad = False
-            self.lstm = nn.LSTM(embed_size, hid_size, num_hid_layers, dropout=drop_prob)
+            self.lstm = nn.LSTM(embed_size, hid_size, num_hid_layers)
         else:
-            self.lstm = nn.LSTM(2 * num_items + 1, hid_size, num_hid_layers, dropout=drop_prob)
+            self.lstm = nn.LSTM(2 * num_items + 1, hid_size, num_hid_layers)
         
         self.dropout = nn.Dropout(p=drop_prob)
         self.out = nn.Linear(hid_size, num_items)

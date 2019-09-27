@@ -58,7 +58,7 @@ def train(X_train, X_val, model, optimizer, logger, num_epochs, batch_size):
 
             # Logging
             if step % 20 == 0:
-                logger.log_scalars(metrics.average(), step * batch_size)
+                logger.log_scalars(metrics.average(), step)
 
         # Validation
         model.eval()
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--logdir', type=str, default='runs/ffw')
     parser.add_argument('--embed_size', type=int, default=200)
-    parser.add_argument('--hid_size', type=int, default=200)
+    parser.add_argument('--hid_size', type=int, default=500)
     parser.add_argument('--drop_prob', type=float, default=0.5)
     parser.add_argument('--batch_size', type=int, default=500)
     parser.add_argument('--lr', type=float, default=1e-3)
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     X_val = X[np.where(np.isin(user_ids, users_val))]
 
     statistics_size = X_train.shape[1] - 4 - num_prev_interactions
-    num_items = len(np.unique(X[:, 1].toarray()))
+    num_items = int(X[:, 1].max() + 1)
 
     model = FeedForward(statistics_size, num_prev_interactions, args.embed_size, args.hid_size,
                         num_items, args.drop_prob).cuda()

@@ -37,6 +37,7 @@ def train(df, model, optimizer, logger, num_epochs, batch_size):
             inputs = inputs.cuda()
             preds = model(inputs)
             loss = compute_loss(preds, item_ids.cuda(), labels.cuda(), criterion)
+            #loss = compute_loss(preds, item_ids, labels, criterion)
             train_auc = compute_auc(preds.detach().cpu(), item_ids, labels)
 
             model.zero_grad()
@@ -48,7 +49,12 @@ def train(df, model, optimizer, logger, num_epochs, batch_size):
             
             # Logging
             if step % 20 == 0:
-                logger.log_scalars(metrics.average(), step * batch_size)
+                logger.log_scalars(metrics.average(), step)
+                weights = {"weight/" + name: param for name, param in model.named_parameters()}
+                grads = {"grad/" + name: param.grad
+                         for name, param in model.named_parameters() if param.grad is not None}
+                logger.log_histograms(weights, step)
+                logger.log_histograms(grads, step)
             
         # Validation
         model.eval()
@@ -77,10 +83,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
-    
-    model = SAKT(df["item_id"].nunique(), args.embed_inputs, args.embed_size, args.hid_size,
+
+    num_items = int(df["item_id"].max() + 1)
+    model = SAKT(num_items, args.embed_inputs, args.embed_size, args.hid_size,
                  args.num_heads, args.encode_pos, args.drop_prob).cuda()
-    model = FeedforwardBaseline(df["item_id"].nunique(), args.embed_size, args.hid_size, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
     
     param_str = (f'{args.dataset}, embed={args.embed_inputs}, dropout={args.drop_prob}, batch_size={args.batch_size} '

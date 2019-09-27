@@ -54,6 +54,7 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
 
     # Remove continuous outcomes
     df = df[df["correct"].isin([0, 1])]
+    df["correct"] = df["correct"].astype(np.int32)
 
     # Filter nan skills
     if remove_nan_skills:
@@ -70,8 +71,13 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     for item_id, skill_id in df[["item_id", "skill_id"]].values:
         Q_mat[item_id, skill_id] = 1
 
+    # Remove row duplicates due to multiple skills for one item
+    if data_name == "assistments09":
+        df = df.drop_duplicates("order_id")
+    elif data_name == "assistments17":
+        df = df.drop_duplicates(["user_id", "timestamp"])
+
     df = df[['user_id', 'item_id', 'timestamp', 'correct']]
-    df["correct"] = df["correct"].astype(np.int32)
     df.reset_index(inplace=True, drop=True)
 
     # Save data
@@ -159,45 +165,47 @@ def prepare_squirrel_ai(min_interactions_per_user):
             timestamp and correct features
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
-    data_path = "data/squirrel-ai"
+    data_path = "data/squirrel_ai"
 
     train_df = pd.read_csv(os.path.join(data_path, "studentDataFIT.csv"))
     test_df = pd.read_csv(os.path.join(data_path, "studentDataTEST.csv"))
+
     train_df, test_df = [df.rename(columns={"student_index": "user_id",
                                             "question_index": "item_id",
                                             "KP_index": "skill_id",
                                             "is_correct": "correct"})
                          for df in (train_df, test_df)]
 
+    # Timestamp in seconds
+    train_df["timestamp"] = train_df["decimalTimeAnswered"] * 3600 * 24
+    train_df["timestamp"] = (train_df["timestamp"] - train_df["timestamp"].min()).astype(np.int64)
+    test_df["timestamp"] = test_df["decimalTimeAnswered"] * 3600 * 24
+    test_df["timestamp"] = (test_df["timestamp"] - test_df["timestamp"].min()).astype(np.int64)
 
-    for i, df in enumerate([train_df, test_df]):
-        # Timestamp in seconds
-        df["timestamp"] = df["decimalTimeAnswered"] * 3600 * 24
-        df["timestamp"] = (df["timestamp"] - df["timestamp"].min()).astype(np.int64)
+    # Filter too short sequences
+    train_df = train_df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
+    test_df = test_df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
 
-        # Filter too short sequences
-        df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
+    train_df["user_id"] = np.unique(train_df["user_id"], return_inverse=True)[1]
+    test_df["user_id"] = np.unique(test_df["user_id"], return_inverse=True)[1] + train_df["user_id"].nunique()
 
-        if i == 0:
-            df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1]
-        else:
-            df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1] + train_df["user_id"].nunique()
-
-        # Build Q-matrix
-        num_items = max(train_df["item_id"].max(), test_df["item_id"].max()) + 1
-        num_skills = max(train_df["skill_id"].max(), test_df["skill_id"].max()) + 1
-        Q_mat = np.zeros((num_items, num_skills))
+    # Build Q-matrix
+    num_items = max(train_df["item_id"].max(), test_df["item_id"].max()) + 1
+    num_skills = max(train_df["skill_id"].max(), test_df["skill_id"].max()) + 1
+    Q_mat = np.zeros((num_items, num_skills))
+    for df in (train_df, test_df):
         for item_id, skill_id in df[["item_id", "skill_id"]].values:
             Q_mat[item_id, skill_id] = 1
 
-        df = df[['user_id', 'item_id', 'timestamp', 'correct']]
-        df["correct"] = df["correct"].astype(np.int32)
-        df.reset_index(inplace=True, drop=True)
+    train_df = train_df[['user_id', 'item_id', 'timestamp', 'correct']]
+    test_df = test_df[['user_id', 'item_id', 'timestamp', 'correct']]
+    train_df.reset_index(inplace=True, drop=True)
+    test_df.reset_index(inplace=True, drop=True)
 
-        # Save data
-        suffix = "train" if i == 0 else "test"
-        sparse.save_npz(os.path.join(data_path, f"q_mat_{suffix}.npz"), sparse.csr_matrix(Q_mat))
-        df.to_csv(os.path.join(data_path, f"preprocessed_data_{suffix}.csv"), sep="\t", index=False)
+    # Save data
+    sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
+    train_df.to_csv(os.path.join(data_path, f"preprocessed_data.csv"), sep="\t", index=False)
+    test_df.to_csv(os.path.join(data_path, f"preprocessed_data_test.csv"), sep="\t", index=False)
 
 
 if __name__ == "__main__":
@@ -224,6 +232,6 @@ if __name__ == "__main__":
             min_interactions_per_user=args.min_interactions,
             kc_col_name="KC(Default)",
             remove_nan_skills=args.remove_nan_skills)
-    elif args.dataset == "squirrel-ai":
+    elif args.dataset == "squirrel_ai":
         prepare_squirrel_ai(
             min_interactions_per_user=args.min_interactions)

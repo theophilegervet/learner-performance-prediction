@@ -64,6 +64,9 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
         features['df'] = np.vstack((features['df'], df_user))
 
+        item_ids = df_user[:, 1].reshape(-1, 1)
+        labels = df_user[:, 3].reshape(-1, 1)
+
         if 'skills' in active_features:
             features['skills'] = sparse.vstack([features["skills"], sparse.csr_matrix(skills)])
 
@@ -97,9 +100,9 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 # Past attempts for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                item_ids_onehot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
-                tmp = np.cumsum(item_ids_onehot, 0)[np.arange(num_items_user), df_user[:, 1]]
-                attempts[:, -2] = phi(np.concatenate((np.zeros(1), tmp))[:-1])
+                item_ids_onehot = onehot.fit_transform(item_ids).toarray()
+                tmp = np.vstack((np.zeros(item_ids_onehot.shape[1]), np.cumsum(item_ids_onehot, 0)))[:-1]
+                attempts[:, -2] = phi(tmp[np.arange(num_items_user), df_user[:, 1]])
 
                 # Past attempts for all items
                 attempts[:, -1] = phi(np.arange(num_items_user))
@@ -140,10 +143,9 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 # Past wins for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                item_ids_onehot = onehot.fit_transform(df_user[:, 1].reshape(-1, 1)).toarray()
-                tmp = np.cumsum(item_ids_onehot * df_user[:, 3].reshape(-1, 1), 0)
-                tmp = tmp[np.arange(num_items_user), df_user[:, 1]]
-                attempts[:, -2] = phi(np.concatenate((np.zeros(1), tmp))[:-1])
+                item_ids_onehot = onehot.fit_transform(item_ids).toarray()
+                tmp = np.vstack((np.zeros(item_ids_onehot.shape[1]), np.cumsum(item_ids_onehot * labels, 0)))[:-1]
+                wins[:, -2] = phi(tmp[np.arange(num_items_user), df_user[:, 1]])
 
                 # Past wins for all items
                 wins[:, -1] = phi(np.concatenate((np.zeros(1), np.cumsum(df_user[:, 3])[:-1])))
