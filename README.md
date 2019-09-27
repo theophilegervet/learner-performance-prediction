@@ -87,9 +87,9 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 | Algorithm | assistments09 | assistments12 | assistments15 | assistments17 | bridge_algebra06 | algebra05 |
 | --------- | ------------- | ------------- | ------------- | ------------- | ---------------- | --------- | 
 | IRT       | 0.69          | 0.71          | 0.64          | 0.68          | 0.75             | 0.77      |                  
-| PFA       | 0.77          | 0.74          | 0.71          | 0.71          | 0.80             | 0.81      | 
-| DAS3H     | -             |               | -             |               |                  |           |
-| FFW       |               |               |               |               |                  |           |
+| PFA       | 0.77          | 0.75          | 0.70          | 0.71          | 0.80             | 0.83      | 
+| DAS3H     | -             | 0.75          | -             | 0.72          | 0.79             | 0.83      |
+| FFW       | 0.78          |               | 0.71          | 0.71          |                  |           |
 | DKT       |               |               |               |               |                  |           |
 | SAKT      |               |               |               |               |                  |           |
 
