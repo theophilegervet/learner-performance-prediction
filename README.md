@@ -23,7 +23,7 @@ The code supports the following datasets:
 
 | Dataset          | # Users  | # Items | # Skills | # Interactions | Mean # skills/item | Timestamps | Median length |
 | ---------------- | -------- | ------- | -------- | -------------- | ------------------ | ---------- | ------------- |
-| assistments09    | 3,241    | 26,634  | 124      | 397,137        | 1.20               | No         | 26            |
+| assistments09    | 3,241    | 17,709  | 124      | 278,868        | 1.20               | No         | 35            |
 | assistments12    | 29,018   | 53,086  | 265      | 2,711,602      | 1.00               | Yes        | 49            |
 | assistments15    | 14,567   | 100     | 100      | 658,887        | 1.00               | No         | 20            |
 | assistments17    | 1,708    | 3,162   | 102      | 942,814        | 1.23               | Yes        | 441           |
@@ -46,24 +46,29 @@ To encode a sparse feature matrix with specified features:
 python encode_lr.py --dataset <dataset codename> --items --skills --wins --attempts --time_windows
 ```
 
+Correspondence between flags give and algorithms:
+- IRT: logistic regression with `--item` flags
+- PFA: logistic regression with `--item --skills --wins --attempts` flags
+- DAS3H: logistic regression with `--item --skills --wins --attempts --time_windows` flags
+
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
 python train_lr.py data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
 ```
 
-#### Feedforward neural network
+#### Feedforward neural network baseline
 
 To encode a sparse feature matrix with specified features:
 
 ```
-python encode_ffw.py --dataset <dataset codename> --total --items --num_prev_interactions=1
+python encode_ffw.py --dataset <dataset codename> --total --items --skills --num_prev_interactions=1
 ```
 
 To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
 
 ```
-python train_ffw.py data/<dataset codename>/X-ffw-ti-1.npz --dataset <dataset codename>
+python train_ffw.py data/<dataset codename>/X-ffw-tsi-1.npz --dataset <dataset codename>
 ```
 
 #### Deep knowledge tracing
@@ -71,7 +76,7 @@ python train_ffw.py data/<dataset codename>/X-ffw-ti-1.npz --dataset <dataset co
 To train a DKT model:
 
 ```
-python train_dkt.py --dataset <dataset codename> --embed_inputs
+python train_dkt.py --dataset <dataset codename>
 ```
 
 #### Self-attentive knowledge tracing
@@ -79,7 +84,7 @@ python train_dkt.py --dataset <dataset codename> --embed_inputs
 To train a SAKT model:
 
 ```
-python train_sakt.py --dataset <dataset codename> --embed_inputs 
+python train_sakt.py --dataset <dataset codename>
 ```
 
 ## Results
@@ -89,12 +94,5 @@ python train_sakt.py --dataset <dataset codename> --embed_inputs
 | IRT       | 0.69          | 0.71          | 0.64          | 0.68          | 0.75             | 0.77      |                  
 | PFA       | 0.77          | 0.75          | 0.70          | 0.71          | 0.80             | 0.83      | 
 | DAS3H     | -             | 0.75          | -             | 0.72          | 0.79             | 0.83      |
-| FFW       | 0.78          |               | 0.71          | 0.71          |                  |           |
-| DKT       |               |               |               |               |                  |           |
+| DKT       | 0.75          | 0.74          | 0.73          | 0.73          | 0.79             | 0.83      |
 | SAKT      |               |               |               |               |                  |           |
-
-Legend for results in table:
-- IRT: logistic regression with `--item` flags
-- PFA: logistic regression with `--item --skills --wins --attempts` flags
-- DAS3H: logistic regression with `--item --skills --wins --attempts --time_windows` flags
-- FFW: feedforward neural network with `--total --items --num_prev_interactions=1` flags
