@@ -41,15 +41,13 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 #### Logistic regression
 
 To encode a sparse feature matrix with specified features:
+- IRT: `--item` 
+- PFA: `--item --skills --wins --attempts` 
+- DAS3H: `--item --skills --wins --attempts --time_windows` 
 
 ```
 python encode_lr.py --dataset <dataset codename> --items --skills --wins --attempts --time_windows
 ```
-
-Correspondence between flags give and algorithms:
-- IRT: logistic regression with `--item` flags
-- PFA: logistic regression with `--item --skills --wins --attempts` flags
-- DAS3H: logistic regression with `--item --skills --wins --attempts --time_windows` flags
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
