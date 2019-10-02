@@ -5,6 +5,9 @@ import pandas as pd
 from scipy import sparse
 from sklearn.preprocessing import OneHotEncoder
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 
 def phi(x):
     return np.log(1 + x)
@@ -31,7 +34,7 @@ def df_to_sparse(df, Q_mat, active_features, num_prev_interactions):
     features = None
 
     for user_id in df["user_id"].unique():
-        df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct"]].copy()
+        df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct", "skill_id"]].copy()
         df_user = df_user.values
         num_items_user = df_user.shape[0]
 
@@ -40,19 +43,20 @@ def df_to_sparse(df, Q_mat, active_features, num_prev_interactions):
 
         item_ids = df_user[:, 1].reshape(-1, 1)
         labels = df_user[:, 3].reshape(-1, 1)
+        skill_ids = df_user[:, 4].reshape(-1, 1)
 
-        item_ids_onehot = onehot_items.fit_transform(item_ids).toarray()
+        items_onehot = onehot_items.fit_transform(item_ids).toarray()
         skills_onehot = Q_mat[item_ids.flatten()]
 
-        # Previous interactions (item + correctness encoding)
+        # Previous interactions (skill and label encoding)
         if num_prev_interactions > 0:
             prev_interactions = np.zeros((num_items_user, num_prev_interactions))
-            encodings = (item_ids + labels * num_items).flatten()
+            encodings = (skill_ids * 2 + labels).flatten()
             for i in range(num_prev_interactions):
                 prev_interactions[i+1:, i] = encodings[:-i-1]
 
         # Past attempts for each item and total
-        counts = accumulate(item_ids_onehot)
+        counts = accumulate(items_onehot)
         attempts[:, :num_items] = phi(counts)
         attempts[:, -1] = phi(counts.sum(axis=1))
 
@@ -60,7 +64,7 @@ def df_to_sparse(df, Q_mat, active_features, num_prev_interactions):
         attempts[:, num_items:num_items + num_skills] = phi(accumulate(skills_onehot))
 
         # Past wins for each item and total
-        counts = accumulate(item_ids_onehot * labels)
+        counts = accumulate(items_onehot * labels)
         wins[:, :num_items] = phi(counts)
         wins[:, -1] = phi(counts.sum(axis=1))
 
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument('--skills', action='store_true', help='If True, add past attempts/wins per skill.')
     parser.add_argument('--items', action='store_true', help='If True, add past attempts/wins per item.')
     parser.add_argument('--num_prev_interactions', type=int, default=1,
-                        help='Number of previous interactions to include.')
+                        help='Number of previous skill-label interactions to include.')
     args = parser.parse_args()
 
     data_path = os.path.join('data', args.dataset)

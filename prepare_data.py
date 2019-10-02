@@ -28,8 +28,8 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     elif data_name == "assistments12":
         df = df.rename(columns={"problem_id": "item_id"})
         df["timestamp"] = pd.to_datetime(df["start_time"])
-        df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
         df["timestamp"] = df["timestamp"] - df["timestamp"].min()
+        df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
     elif data_name == "assistments15":
         df = df.rename(columns={"sequence_id": "item_id"})
         df["skill_id"] = df["item_id"]
@@ -77,7 +77,10 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     elif data_name == "assistments17":
         df = df.drop_duplicates(["user_id", "timestamp"])
 
-    df = df[['user_id', 'item_id', 'timestamp', 'correct']]
+    # Get unique skill id from combination of all skill ids
+    df["skill_id"] = np.unique(Q_mat, axis=0, return_inverse=True)[1][df["item_id"]]
+
+    df = df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
     df.reset_index(inplace=True, drop=True)
 
     # Save data
@@ -118,6 +121,7 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
 
     # Remove continuous outcomes
     df = df[df["correct"].isin([0, 1])]
+    df['correct'] = df['correct'].astype(np.int32)
 
     # Filter nan skills
     if remove_nan_skills:
@@ -145,8 +149,10 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
         for kc in kc_str.split('~~'):
             Q_mat[item_id, kc2idx[kc]] = 1
 
-    df = df[['user_id', 'item_id', 'timestamp', 'correct']]
-    df['correct'] = df['correct'].astype(np.int32)
+    # Get unique skill id from combination of all skill ids
+    df["skill_id"] = np.unique(Q_mat, axis=0, return_inverse=True)[1][df["item_id"]]
+
+    df = df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
     df.reset_index(inplace=True, drop=True)
 
     # Save data
@@ -197,8 +203,13 @@ def prepare_squirrel_ai(min_interactions_per_user):
         for item_id, skill_id in df[["item_id", "skill_id"]].values:
             Q_mat[item_id, skill_id] = 1
 
-    train_df = train_df[['user_id', 'item_id', 'timestamp', 'correct']]
-    test_df = test_df[['user_id', 'item_id', 'timestamp', 'correct']]
+    # Get unique skill id from combination of all skill ids
+    unique_skill_ids = np.unique(Q_mat, axis=0, return_inverse=True)[1]
+    train_df["skill_id"] = unique_skill_ids[train_df["item_id"]]
+    test_df["skill_id"] = unique_skill_ids[test_df["item_id"]]
+
+    train_df = train_df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
+    test_df = test_df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
     train_df.reset_index(inplace=True, drop=True)
     test_df.reset_index(inplace=True, drop=True)
 

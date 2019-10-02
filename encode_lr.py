@@ -1,10 +1,10 @@
+import os
+import argparse
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
-from collections import defaultdict
 from scipy import sparse
-import argparse
-import os
+from collections import defaultdict
+from sklearn.preprocessing import OneHotEncoder
 
 from utils.queue import TimeWindowQueue
 
@@ -176,6 +176,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data_path = os.path.join('data', args.dataset)
+    df = pd.read_csv(os.path.join(data_path, 'preprocessed_data.csv'), sep="\t")
+    Q_mat = sparse.load_npz(os.path.join(data_path, 'q_mat.npz')).toarray()
 
     all_features = ['users', 'items', 'skills', 'wins', 'attempts']
     active_features = [features for features in all_features if vars(args)[features]]
@@ -183,7 +185,6 @@ if __name__ == "__main__":
     if args.time_windows:
         features_suffix += '_tw'
 
-    df = pd.read_csv(os.path.join(data_path, 'preprocessed_data.csv'), sep="\t")
-    qmat = sparse.load_npz(os.path.join(data_path, 'q_mat.npz')).toarray()
-    features = df_to_sparse(df, qmat, active_features, args.time_windows)
+    features = df_to_sparse(df, Q_mat, active_features, args.time_windows)
+
     sparse.save_npz(os.path.join(data_path, f"X-lr-{features_suffix}"), features)

@@ -75,7 +75,8 @@ class SAKT(nn.Module):
     """Self-attentive knowledge tracing.
     
     Arguments:
-            num_items (int): Number of items
+            num_inputs (int)
+            num_outputs (int)
             embed_inputs (bool): If True embed inputs, else one hot encoding
             embed_size (int): Input embedding dimension
             hid_size (int): Attention dot-product dimension
@@ -83,25 +84,26 @@ class SAKT(nn.Module):
             encode_pos (bool): If True, add positional encoding
             drop_prob (float): Dropout probability
     """
-    def __init__(self, num_items, embed_inputs, embed_size, hid_size, num_heads, encode_pos, drop_prob):
+    def __init__(self, num_inputs, num_outputs, embed_inputs, embed_size, hid_size, num_heads,
+                 encode_pos, drop_prob):
         super(SAKT, self).__init__()
+        self.num_inputs = num_inputs
         self.embed_inputs = embed_inputs
         self.encode_pos = encode_pos
         
         if self.embed_inputs:
-            self.input_embeds = nn.Embedding(2 * num_items + 1, embed_size, padding_idx=0)
-            self.input_embeds.weight.requires_grad = False
+            self.input_embeds = nn.Embedding(num_inputs, embed_size, padding_idx=0)
             self.attn = MultiHeadedAttention(embed_size, hid_size, num_heads, drop_prob)
         else:
-            self.attn = MultiHeadedAttention(2 * num_items + 1, hid_size, num_heads, drop_prob)
+            self.attn = MultiHeadedAttention(num_inputs, hid_size, num_heads, drop_prob)
         
-        self.out = nn.Linear(hid_size, num_items)
+        self.out = nn.Linear(hid_size, num_outputs)
         
     def forward(self, inputs):
         if self.embed_inputs:
             embeds = self.input_embeds(inputs)
         else:
-            embeds = F.one_hot(inputs, 2 * self.num_items + 1).float()
+            embeds = F.one_hot(inputs, self.num_inputs).float()
 
         if self.encode_pos:
             pe = positional_encoding(embeds.size(-2), embeds.size(-1))
