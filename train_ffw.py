@@ -113,7 +113,8 @@ if __name__ == "__main__":
                         args.hid_size, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
 
-    param_str = f'{args.dataset}, {features_suffix}, {num_prev_interactions}'
+    param_str = (f'{args.dataset}, features={features_suffix}, num_prev={num_prev_interactions}, '
+                 f'item_outputs={args.item_outputs}')
     logger = Logger(os.path.join(args.logdir, param_str))
 
     train(X_train, X_val, model, optimizer, logger, args.num_epochs, args.batch_size, 

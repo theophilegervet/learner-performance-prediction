@@ -41,18 +41,17 @@ def positional_encoding(seq_length, embed_size):
     
     
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, input_size, output_size, num_heads, drop_prob):
+    def __init__(self, total_size, num_heads, drop_prob):
         super(MultiHeadedAttention, self).__init__()
-        assert output_size % num_heads == 0
-        self.output_size = output_size
-        self.head_size = output_size // num_heads
+        assert total_size % num_heads == 0
+        self.total_size = total_size
+        self.head_size = total_size // num_heads
         self.num_heads = num_heads
-        self.input_linears = clone(nn.Linear(input_size, output_size), 3)
-        self.output_linear = nn.Linear(output_size, output_size)
+        self.linear_layers = clone(nn.Linear(total_size, total_size), 4)
         self.dropout = nn.Dropout(p=drop_prob)
-        
+
     def forward(self, query, key, value, mask=None):
-        batch_size, seq_length = query.size()[:2]
+        batch_size, seq_length = query.shape[:2]
         
         # Apply mask to all heads
         if mask is not None:
@@ -60,15 +59,14 @@ class MultiHeadedAttention(nn.Module):
             
         # Project inputs
         query, key, value = [l(x).view(batch_size, seq_length, self.num_heads, self.head_size).transpose(1, 2)
-                             for l, x in zip(self.input_linears, (query, key, value))]
+                             for l, x in zip(self.linear_layers, (query, key, value))]
         
         # Apply attention 
         out, self.prob_attn = attention(query, key, value, mask=mask, dropout=self.dropout)
-        out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.output_size)
+        out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.total_size)
         
-        # Apply non-linearity
-        out = self.dropout(F.relu(self.output_linear(out)))
-        return out
+        # Project output
+        return self.linear_layers[-1](out)
 
 
 class SAKT(nn.Module):
@@ -77,33 +75,26 @@ class SAKT(nn.Module):
     Arguments:
             num_inputs (int)
             num_outputs (int)
-            embed_inputs (bool): If True embed inputs, else one hot encoding
-            embed_size (int): Input embedding dimension
-            hid_size (int): Attention dot-product dimension
+            embed_size (int): Input embedding and attention dot-product dimension
+            num_attn_layers (int): Number of attention layers
             num_heads (int): Number of parallel attention heads
             encode_pos (bool): If True, add positional encoding
             drop_prob (float): Dropout probability
     """
-    def __init__(self, num_inputs, num_outputs, embed_inputs, embed_size, hid_size, num_heads,
+    def __init__(self, num_inputs, num_outputs, embed_size, num_attn_layers, num_heads,
                  encode_pos, drop_prob):
         super(SAKT, self).__init__()
         self.num_inputs = num_inputs
-        self.embed_inputs = embed_inputs
         self.encode_pos = encode_pos
-        
-        if self.embed_inputs:
-            self.input_embeds = nn.Embedding(num_inputs, embed_size, padding_idx=0)
-            self.attn = MultiHeadedAttention(embed_size, hid_size, num_heads, drop_prob)
-        else:
-            self.attn = MultiHeadedAttention(num_inputs, hid_size, num_heads, drop_prob)
-        
-        self.out = nn.Linear(hid_size, num_outputs)
+
+        self.input_embeds = nn.Embedding(num_inputs, embed_size, padding_idx=0)
+        self.attn_layers = clone(MultiHeadedAttention(embed_size, num_heads, drop_prob),
+                                 num_attn_layers)
+        self.dropout = nn.Dropout(p=drop_prob)
+        self.out = nn.Linear(embed_size, num_outputs)
         
     def forward(self, inputs):
-        if self.embed_inputs:
-            embeds = self.input_embeds(inputs)
-        else:
-            embeds = F.one_hot(inputs, self.num_inputs).float()
+        embeds = self.input_embeds(inputs)
 
         if self.encode_pos:
             pe = positional_encoding(embeds.size(-2), embeds.size(-1))
@@ -115,5 +106,7 @@ class SAKT(nn.Module):
         if inputs.is_cuda:
             mask = mask.cuda()
 
-        out = self.attn(embeds, embeds, embeds, mask)
+        out = embeds
+        for l in self.attn_layers:
+            out = self.dropout(out + F.relu(l(out, out, out, mask)))
         return self.out(out)
