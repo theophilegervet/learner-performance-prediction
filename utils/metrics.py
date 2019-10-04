@@ -1,27 +1,3 @@
-import torch
-from sklearn.metrics import roc_auc_score, accuracy_score
-
-
-def compute_auc(preds, item_ids, labels):
-    preds = preds[labels >= 0]
-    item_ids = item_ids[labels >= 0]
-    labels = labels[labels >= 0].float()
-    preds = preds[torch.arange(preds.size(0)), item_ids]
-    if len(torch.unique(labels)) == 1: # Only one class
-        auc = accuracy_score(labels, preds.round())
-    else:
-        auc = roc_auc_score(labels, preds)
-    return auc
-
-
-def compute_loss(preds, item_ids, labels, criterion):
-    preds = preds[labels >= 0]
-    item_ids = item_ids[labels >= 0]
-    labels = labels[labels >= 0].float()
-    preds = preds[torch.arange(preds.size(0)), item_ids]
-    return criterion(preds, labels)
-
-
 class Metrics:
     """Keep track of metrics over time in a dictionary.
     """

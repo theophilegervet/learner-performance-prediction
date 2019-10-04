@@ -1,43 +1,47 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class DKT(nn.Module):
-    def __init__(self, num_inputs, num_outputs, embed_inputs, embed_size, hid_size,
-                 num_hid_layers, drop_prob):
+    def __init__(self, num_items, num_skills, hid_size, num_hid_layers, drop_prob,
+                 item_in, skill_in, item_out, skill_out):
         """Deep knowledge tracing.
-        
+
         Arguments:
-            num_inputs (int)
-            num_outputs (int)
-            embed_inputs (bool): If True embed inputs, else one hot encoding
-            embed_size (int): Input embedding dimension
-            hid_size (int): Hidden layer dimension
-            num_hid_layers (int): Number of hidden layers
-            drop_prob (float): Dropout probability
+            num_items (int): number of items
+            num_skills (int): number of skills
+            hid_size (int): hidden layer dimension
+            num_hid_layers (int): number of hidden layers
+            drop_prob (float): dropout probability
+            item_in (bool): if True, use items as inputs
+            skill_in (bool): if True, use skills as inputs
+            item_out (bool): if True, use items as outputs
+            skill_out (bool): if True, use skills as outputs
         """
         super(DKT, self).__init__()
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.embed_inputs = embed_inputs
-
-        if self.embed_inputs:
-            self.input_embeds = nn.Embedding(num_inputs, embed_size, padding_idx=0)
-            self.lstm = nn.LSTM(embed_size, hid_size, num_hid_layers, batch_first=True)
-        else:
-            self.lstm = nn.LSTM(num_inputs, hid_size, num_hid_layers, batch_first=True)
+        self.num_items = num_items
+        self.num_skills = num_skills
+        input_size = (2 * num_items + 1) * item_in + (2 * num_skills + 1) * skill_in
+        self.output_size = num_items * item_out + num_skills * skill_out
         
+        self.lstm = nn.LSTM(input_size, hid_size, num_hid_layers, batch_first=True)
         self.dropout = nn.Dropout(p=drop_prob)
-        self.out = nn.Linear(hid_size, num_outputs)
+        self.out = nn.Linear(hid_size, self.output_size)
 
-    def forward(self, inputs, hidden=None):
-        if self.embed_inputs:
-            embeds = self.input_embeds(inputs)
-        else:
-            embeds = F.one_hot(inputs, self.num_inputs).float()
+    def forward(self, item_inputs, skill_inputs, hidden=None):
+        # Pad inputs with 0, this explains the +1
+        if (item_inputs is not None) and (skill_inputs is not None):
+            items_onehot = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
+            skills_onehot = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
+            input = torch.cat((items_onehot, skills_onehot), -1)
+        elif (item_inputs is not None):
+            input = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
+        elif (skill_inputs is not None):
+            input = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
 
-        out, hidden = self.lstm(embeds, hx=hidden)
-        return self.out(self.dropout(out)), hidden
+        output, hidden = self.lstm(input, hx=hidden)
+        return self.out(self.dropout(output)), hidden
 
     def repackage_hidden(self, hidden):
         # Return detached hidden for TBPTT
