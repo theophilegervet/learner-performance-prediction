@@ -3,7 +3,6 @@
 Simple and performant implementations of knowledge tracing algorithms:
 - [DAS3H](https://arxiv.org/pdf/1905.06873.pdf)
 - [DKT](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
-- [SAKT](https://arxiv.org/pdf/1907.06837.pdf)
 
 ## Setup
 
@@ -71,18 +70,10 @@ python train_ffw.py data/<dataset codename>/X-ffw-tsi-1.npz --dataset <dataset c
 
 #### Deep knowledge tracing
 
-To train a DKT model:
+To train a DKT model taking skills as input and outputting skills:
 
 ```
-python train_dkt.py --dataset <dataset codename>
-```
-
-#### Self-attentive knowledge tracing
-
-To train a SAKT model:
-
-```
-python train_sakt.py --dataset <dataset codename>
+python train_dkt.py --dataset <dataset codename> --skill_in --skill_out
 ```
 
 ## Results
@@ -93,4 +84,3 @@ python train_sakt.py --dataset <dataset codename>
 | PFA       | 0.77          | 0.75          | 0.70          | 0.71          | 0.80             | 0.83      | 
 | DAS3H     | -             | 0.75          | -             | 0.72          | 0.79             | 0.83      |
 | DKT       | 0.75          | 0.74          | 0.73          | 0.73          | 0.79             | 0.83      |
-| SAKT      |               |               |               |               |                  |           |
