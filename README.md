@@ -9,7 +9,7 @@ Simple and performant implementations of knowledge tracing algorithms:
 In a new conda environment with python 3, install [PyTorch](https://pytorch.org) and the remaining requirements:
 
 ```
-pip install -r requirements.txt
+pip install -r requirements_kt.txt
 ```
 
 The code supports the following datasets:
