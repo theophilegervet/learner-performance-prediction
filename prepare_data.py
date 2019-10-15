@@ -49,9 +49,6 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     elif data_name == "assistments15":
         df.sort_values(by="log_id", inplace=True)
 
-    # Filter too short sequences
-    df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
-
     # Remove continuous outcomes
     df = df[df["correct"].isin([0, 1])]
     df["correct"] = df["correct"].astype(np.int32)
@@ -61,6 +58,9 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
         df = df[~df["skill_id"].isnull()]
     else:
         df.ix[df["skill_id"].isnull(), "skill_id"] = -1
+
+    # Filter too short sequences
+    df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
 
     df["user_id"] = np.unique(df["user_id"], return_inverse=True)[1]
     df["item_id"] = np.unique(df["item_id"], return_inverse=True)[1]
@@ -116,9 +116,6 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
     df["timestamp"] = df["timestamp"].apply(lambda x: x.total_seconds()).astype(np.int64)
     df.sort_values(by="timestamp", inplace=True)
 
-    # Filter too short sequences
-    df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
-
     # Remove continuous outcomes
     df = df[df["correct"].isin([0, 1])]
     df['correct'] = df['correct'].astype(np.int32)
@@ -131,6 +128,9 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
 
     # Drop duplicates
     df.drop_duplicates(subset=["user_id", "item_id", "timestamp"], inplace=True)
+
+    # Filter too short sequences
+    df = df.groupby("user_id").filter(lambda x: len(x) >= min_interactions_per_user)
 
     # Extract KCs
     kc_list = []

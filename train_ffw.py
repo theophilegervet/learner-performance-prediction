@@ -1,11 +1,13 @@
 import argparse
 import numpy as np
+from random import shuffle
 from scipy.sparse import load_npz, csr_matrix
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 import torch.nn as nn
 from torch.optim import Adam
 
-from ffw import FeedForward
+from model_ffw import FeedForward
 from utils import *
 
 
@@ -15,6 +17,26 @@ def get_tensors(sparse, item_outputs):
     output_ids = dense[:, 1].long() if item_outputs else dense[:, 4].long()
     labels = dense[:, 3].float()
     return inputs, output_ids, labels
+
+
+def compute_auc(preds, item_ids, labels):
+    preds = preds[labels >= 0]
+    item_ids = item_ids[labels >= 0]
+    labels = labels[labels >= 0].float()
+    preds = preds[torch.arange(preds.size(0)), item_ids]
+    if len(torch.unique(labels)) == 1: # Only one class
+        auc = accuracy_score(labels, preds.round())
+    else:
+        auc = roc_auc_score(labels, preds)
+    return auc
+
+
+def compute_loss(preds, item_ids, labels, criterion):
+    preds = preds[labels >= 0]
+    item_ids = item_ids[labels >= 0]
+    labels = labels[labels >= 0].float()
+    preds = preds[torch.arange(preds.size(0)), item_ids]
+    return criterion(preds, labels)
 
 
 def train(X_train, X_val, model, optimizer, logger, num_epochs, batch_size, item_outputs):
