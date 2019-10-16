@@ -20,7 +20,6 @@ class StudentEnv(gym.Env):
             simulation_steps (int): number of steps to simulate
         """
         super(StudentEnv, self).__init__()
-        """
         self.dkt = dkt.cpu()
         assert dkt.item_in and (not dkt.skill_in)
         assert dkt.item_out and (not dkt.skill_out)
@@ -30,14 +29,13 @@ class StudentEnv(gym.Env):
 
         self.action_space = gym.spaces.Discrete(dkt.output_size)
         self.observation_space = gym.spaces.Discrete(dkt.input_size)
-        """
-        self.simulation_steps = simulation_steps
-        self.action_space = gym.spaces.Discrete(2)
-        self.observation_space = gym.spaces.Discrete(1)
+
+        #self.simulation_steps = simulation_steps
+        #self.action_space = gym.spaces.Discrete(2)
+        #self.observation_space = gym.spaces.Discrete(1)
 
     @torch.no_grad()
     def step(self, item_id):
-        """
         self.steps += 1
         success_probs = torch.sigmoid(self.dkt.out(self.hidden[0][-1])).flatten()
         reward = success_probs.mean().item()
@@ -48,14 +46,13 @@ class StudentEnv(gym.Env):
                                   hidden=self.hidden)
         done = self.steps > self.simulation_steps
         return interaction.item(), reward, done, {}
-        """
-        self.steps += 1
-        done = self.steps > self.simulation_steps
-        return 0, item_id, done, {}
+
+        #self.steps += 1
+        #done = self.steps > self.simulation_steps
+        #return 0, item_id, done, {}
 
     @torch.no_grad()
     def reset(self):
-        """
         #interaction = random.choice(self.data)[:self.history_steps].unsqueeze(0)
         interaction = self.data[0][:self.history_steps].unsqueeze(0)
         _, self.hidden = self.dkt(item_inputs=interaction,
@@ -64,9 +61,9 @@ class StudentEnv(gym.Env):
         self.steps = 0
         interaction = 0
         return interaction
-        """
-        self.steps = 0
-        return 0
+
+        #self.steps = 0
+        #return 0
 
 
     def process_data(self, df):

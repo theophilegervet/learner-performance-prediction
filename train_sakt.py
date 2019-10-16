@@ -1,13 +1,64 @@
 import argparse
 import pandas as pd
+from random import shuffle
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 import torch.nn as nn
 from torch.optim import Adam
 from torch.nn.utils import clip_grad_norm_
+from torch.nn.utils.rnn import pad_sequence
 
 from model_sakt import SAKT
 from utils import *
+
+
+def get_data(df, train_split=0.8):
+    """Extract sequences from dataframe.
+    Arguments:
+        df (pandas Dataframe): output by prepare_data.py
+        train_split (float): proportion of data to use for training
+    """
+    item_ids = [torch.tensor(u_df["item_id"].values, dtype=torch.long)
+                for _, u_df in df.groupby("user_id")]
+    skill_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
+                 for _, u_df in df.groupby("user_id")]
+    labels = [torch.tensor(u_df["correct"].values, dtype=torch.long)
+              for _, u_df in df.groupby("user_id")]
+
+    item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i * 2 + l + 1))[:-1]
+                   for (i, l) in zip(item_ids, labels)]
+    skill_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s * 2 + l + 1))[:-1]
+                    for (s, l) in zip(skill_ids, labels)]
+
+    data = list(zip(item_inputs, skill_inputs, item_ids, skill_ids, labels))
+    shuffle(data)
+
+    # Train-test split across users
+    train_size = int(train_split * len(data))
+    train_data, val_data = data[:train_size], data[train_size:]
+    return train_data, val_data
+
+
+def prepare_batches(data, batch_size):
+    """Prepare batches grouping padded sequences.
+    Arguments:
+        data (list of lists of torch Tensor): output by get_data
+        batch_size (int): number of sequences per batch
+    Output:
+        batches (list of lists of torch Tensor)
+    """
+    shuffle(data)
+    batches = []
+
+    for k in range(0, len(data), batch_size):
+        batch = data[k:k + batch_size]
+        seq_lists = list(zip(*batch))
+        inputs_and_ids = [pad_sequence(seqs, batch_first=True, padding_value=0)
+                          for seqs in seq_lists[:4]]
+        labels = pad_sequence(seq_lists[-1], batch_first=True, padding_value=-1)  # Pad labels with -1
+        batches.append([*inputs_and_ids, labels])
+
+    return batches
 
 
 def compute_auc(preds, labels):
@@ -95,19 +146,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train SAKT.')
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--logdir', type=str, default='runs/sakt')
-    parser.add_argument('--item_inputs', action='store_true',
-                        help='If True, use items as inputs instead of skills.')
-    parser.add_argument('--item_outputs', action='store_true',
-                        help='If True, use items as outputs instead of skills.')
     parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--num_attn_layers', type=int, default=1)
     parser.add_argument('--num_heads', type=int, default=5)
     parser.add_argument('--encode_pos', action='store_true')
     parser.add_argument('--drop_prob', type=float, default=0.2)
-    parser.add_argument('--batch_size', type=int, default=5)
+    parser.add_argument('--batch_size', type=int, default=50)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--grad_clip', type=float, default=10)
-    parser.add_argument('--num_epochs', type=int, default=30)
+    parser.add_argument('--num_epochs', type=int, default=100)
     args = parser.parse_args()
     
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
@@ -120,11 +167,16 @@ if __name__ == "__main__":
     model = SAKT(num_items, num_skills, args.embed_size, args.num_attn_layers, args.num_heads,
                  args.encode_pos, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
-    
-    param_str = (f'{args.dataset},encode_pos={args.encode_pos},num_attn_layers={args.num_attn_layers}')
-    logger = Logger(os.path.join(args.logdir, param_str))
-    
-    train(train_data, val_data, model, optimizer, logger, args.num_epochs, args.batch_size,
-          args.grad_clip)
+
+    # Reduce batch size until it fits on GPU
+    while True:
+        try:
+            param_str = (f'{args.dataset},encode_pos={args.encode_pos},num_attn_layers={args.num_attn_layers}')
+            logger = Logger(os.path.join(args.logdir, param_str))
+            train(train_data, val_data, model, optimizer, logger, args.num_epochs, args.batch_size, args.grad_clip)
+            break
+        except RuntimeError:
+            args.batch_size = args.batch_size // 2
+            print(f'Batch does not fit on gpu, reducing size to {args.batch_size}')
     
     logger.close()

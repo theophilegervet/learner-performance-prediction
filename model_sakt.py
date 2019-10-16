@@ -27,9 +27,12 @@ def attention(query, key, value, pos_embeds=None, mask=None, dropout=None):
             tmp = tmp.cuda()
         idxs = tmp.view(-1, 1) - tmp.view(1, -1)
         idxs = torch.clamp(idxs, 0, pos_embeds.num_embeddings - 1)
-        pos = pos_embeds(idxs)
-        pos_scores = torch.matmul(query.unsqueeze(-2), pos.transpose(-2, -1)).squeeze(-2)
-        scores = scores + pos_scores
+        pos = pos_embeds(idxs).transpose(-2, -1)
+
+        # TODO parallel computation takes a huge amount of memory but for loop way too slow
+        scores += torch.matmul(query.unsqueeze(-2), pos).squeeze(-2)
+        #for i in range(scores.size(-1)):
+        #    scores[..., i, :] += torch.matmul(query[..., i, :], pos[i])
 
     scores = scores / math.sqrt(query.size(-1))
     if mask is not None:
@@ -77,11 +80,11 @@ class SAKT(nn.Module):
         Arguments:
             num_items (int): number of items
             num_skills (int): number of skills
-            embed_size (int): Input embedding and attention dot-product dimension
-            num_attn_layers (int): Number of attention layers
-            num_heads (int): Number of parallel attention heads
-            encode_pos (bool): If True, add positional encoding
-            drop_prob (float): Dropout probability
+            embed_size (int): input embedding and attention dot-product dimension
+            num_attn_layers (int): number of attention layers
+            num_heads (int): number of parallel attention heads
+            encode_pos (bool): if True, add positional encoding
+            drop_prob (float): dropout probability
         """
         super(SAKT, self).__init__()
         self.num_items = num_items
@@ -97,6 +100,7 @@ class SAKT(nn.Module):
         self.out = nn.Linear(embed_size, 1)
         
     def forward(self, item_inputs, skill_inputs, item_ids, skill_ids):
+        # TODO support item inputs/outputs once it works well with skills
         input = self.skill_input_embeds(skill_inputs)
         query = self.skill_embeds(skill_ids)
 

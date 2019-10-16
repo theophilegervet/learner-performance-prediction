@@ -1,12 +1,75 @@
 import argparse
 import pandas as pd
+from random import shuffle
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 import torch.nn as nn
 from torch.optim import Adam
+from torch.nn.utils.rnn import pad_sequence
 
 from model_dkt import DKT
 from utils import *
+
+
+def get_data(df, item_in, skill_in, item_out, skill_out, train_split=0.8):
+    """Extract sequences from dataframe.
+
+    Arguments:
+        df (pandas Dataframe): output by prepare_data.py
+        item_in (bool): if True, use items as inputs
+        skill_in (bool): if True, use skills as inputs
+        item_out (bool): if True, use items as outputs
+        skill_out (bool): if True, use skills as outputs
+        train_split (float): proportion of data to use for training
+    """
+    item_ids = [torch.tensor(u_df["item_id"].values, dtype=torch.long)
+                for _, u_df in df.groupby("user_id")]
+    skill_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
+                 for _, u_df in df.groupby("user_id")]
+    labels = [torch.tensor(u_df["correct"].values, dtype=torch.long)
+              for _, u_df in df.groupby("user_id")]
+
+    item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i * 2 + l + 1))[:-1]
+                   for (i, l) in zip(item_ids, labels)]
+    skill_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s * 2 + l + 1))[:-1]
+                    for (s, l) in zip(skill_ids, labels)]
+
+    item_inputs = item_inputs if item_in else [None] * len(item_inputs)
+    skill_inputs = skill_inputs if skill_in else [None] * len(skill_inputs)
+    item_ids = item_ids if item_out else [None] * len(item_ids)
+    skill_ids = skill_ids if skill_out else [None] * len(skill_ids)
+
+    data = list(zip(item_inputs, skill_inputs, item_ids, skill_ids, labels))
+    shuffle(data)
+
+    # Train-test split across users
+    train_size = int(train_split * len(data))
+    train_data, val_data = data[:train_size], data[train_size:]
+    return train_data, val_data
+
+
+def prepare_batches(data, batch_size):
+    """Prepare batches grouping padded sequences.
+
+    Arguments:
+        data (list of lists of torch Tensor): output by get_data
+        batch_size (int): number of sequences per batch
+
+    Output:
+        batches (list of lists of torch Tensor)
+    """
+    shuffle(data)
+    batches = []
+
+    for k in range(0, len(data), batch_size):
+        batch = data[k:k + batch_size]
+        seq_lists = list(zip(*batch))
+        inputs_and_ids = [pad_sequence(seqs, batch_first=True, padding_value=0)
+                          if (seqs[0] is not None) else None for seqs in seq_lists[:4]]
+        labels = pad_sequence(seq_lists[-1], batch_first=True, padding_value=-1)  # Pad labels with -1
+        batches.append([*inputs_and_ids, labels])
+
+    return batches
 
 
 def get_preds(preds, item_ids, skill_ids, labels):
@@ -114,7 +177,11 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         model.train()
 
         # Save model
-        #saver.save(model)
+        average_metrics = metrics.average()
+        logger.log_scalars(average_metrics, step)
+        stop = saver.save(average_metrics['auc/val'], model)
+        if stop:
+            break
 
 
 if __name__ == "__main__":
@@ -134,14 +201,14 @@ if __name__ == "__main__":
     parser.add_argument('--num_hid_layers', type=int, default=1)
     parser.add_argument('--drop_prob', type=float, default=0.5)
     parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--num_epochs', type=int, default=30)
+    parser.add_argument('--lr', type=float, default=1e-2)
+    parser.add_argument('--num_epochs', type=int, default=100)
     args = parser.parse_args()
 
     assert (args.item_in or args.skill_in)    # Use at least one of skills or items as input
     assert (args.item_out != args.skill_out)  # Use exactly one of skills or items as output
 
-    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
+    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
 
     train_data, val_data = get_data(df, args.item_in, args.skill_in, args.item_out, args.skill_out)
 
@@ -151,12 +218,18 @@ if __name__ == "__main__":
     model = DKT(num_items, num_skills, args.hid_size, args.num_hid_layers, args.drop_prob,
                 args.item_in, args.skill_in, args.item_out, args.skill_out).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
-    
-    param_str = (f'{args.dataset},item_in={args.item_in},skill_in={args.skill_in},'
-                 f'item_out={args.item_out},skill_out={args.skill_out}')
-    logger = Logger(os.path.join(args.logdir, param_str))
-    saver = Saver(args.savedir, param_str)
 
-    train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)
+    # Reduce batch size until it fits on GPU
+    while True:
+        try:
+            param_str = (f'{args.dataset},item_in={args.item_in},skill_in={args.skill_in},'
+                         f'item_out={args.item_out},skill_out={args.skill_out},batch_size={args.batch_size}')
+            logger = Logger(os.path.join(args.logdir, param_str))
+            saver = Saver(args.savedir, param_str)
+            train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)
+            break
+        except RuntimeError:
+            args.batch_size = args.batch_size // 2
+            print(f'Batch does not fit on gpu, reducing size to {args.batch_size}')
 
     logger.close()
