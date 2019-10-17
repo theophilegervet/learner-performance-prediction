@@ -68,7 +68,7 @@ def train(X_train, X_val, model, optimizer, logger, num_epochs, batch_size, item
             inputs = inputs.cuda()
             preds = model(inputs)
             loss = compute_loss(preds, output_ids, labels.cuda(), criterion)
-            train_auc = compute_auc(preds.detach().cpu(), output_ids, labels)
+            train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), output_ids, labels)
 
             model.zero_grad()
             loss.backward()
@@ -89,7 +89,7 @@ def train(X_train, X_val, model, optimizer, logger, num_epochs, batch_size, item
             inputs = inputs.cuda()
             with torch.no_grad():
                 preds = model(inputs)
-            val_auc = compute_auc(preds.cpu(), output_ids, labels)
+            val_auc = compute_auc(torch.sigmoid(preds).cpu(), output_ids, labels)
             metrics.store({'auc/val': val_auc})
         model.train()
 

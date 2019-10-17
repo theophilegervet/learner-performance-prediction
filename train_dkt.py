@@ -81,8 +81,6 @@ def get_preds(preds, item_ids, skill_ids, labels):
     elif (skill_ids is not None):
         skill_ids = skill_ids[labels >= 0]
         preds = preds[torch.arange(preds.size(0)), skill_ids]
-    else:
-        raise ValueError("Use exactly one of skills or items as output")
 
     return preds
 
@@ -92,7 +90,7 @@ def compute_auc(preds, item_ids, skill_ids, labels):
     labels = labels[labels >= 0].float()
 
     if len(torch.unique(labels)) == 1:  # Only one class
-        auc = accuracy_score(labels, torch.sigmoid(preds).round())
+        auc = accuracy_score(labels, preds.round())
     else:
         auc = roc_auc_score(labels, preds)
 
@@ -114,6 +112,7 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         model (torch Module)
         optimizer (torch optimizer)
         logger: wrapper for TensorboardX logger
+        saver: wrapper for torch saving
         num_epochs (int): number of epochs to train for
         batch_size (int)
         bptt (int): length of truncated backprop through time chunks
@@ -147,7 +146,7 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
                 preds[:, i:i + bptt] = pred
 
             loss = compute_loss(preds, item_ids, skill_ids, labels.cuda(), criterion)
-            train_auc = compute_auc(preds.detach().cpu(), item_ids, skill_ids, labels)
+            train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), item_ids, skill_ids, labels)
 
             model.zero_grad()
             loss.backward()
@@ -172,7 +171,7 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
                 item_inputs = item_inputs.cuda() if item_inputs is not None else None
                 skill_inputs = skill_inputs.cuda() if skill_inputs is not None else None
                 preds, _ = model(item_inputs, skill_inputs)
-            val_auc = compute_auc(preds.cpu(), item_ids, skill_ids, labels)
+            val_auc = compute_auc(torch.sigmoid(preds).cpu(), item_ids, skill_ids, labels)
             metrics.store({'auc/val': val_auc})
         model.train()
 
@@ -222,8 +221,12 @@ if __name__ == "__main__":
     # Reduce batch size until it fits on GPU
     while True:
         try:
-            param_str = (f'{args.dataset},item_in={args.item_in},skill_in={args.skill_in},'
-                         f'item_out={args.item_out},skill_out={args.skill_out},batch_size={args.batch_size}')
+            param_str = (f'{args.dataset},'
+                         f'batch_size={args.batch_size},'
+                         f'item_in={args.item_in},'
+                         f'skill_in={args.skill_in},'
+                         f'item_out={args.item_out},'
+                         f'skill_out={args.skill_out}')
             logger = Logger(os.path.join(args.logdir, param_str))
             saver = Saver(args.savedir, param_str)
             train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)

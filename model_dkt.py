@@ -36,15 +36,13 @@ class DKT(nn.Module):
     def forward(self, item_inputs, skill_inputs, hidden=None):
         # Pad inputs with 0, this explains the +1
         if (item_inputs is not None) and (skill_inputs is not None):
-            items_onehot = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
-            skills_onehot = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
-            input = torch.cat((items_onehot, skills_onehot), -1)
+            item_onehots = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
+            skill_onehots = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
+            input = torch.cat((item_onehots, skill_onehots), -1)
         elif (item_inputs is not None):
             input = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
         elif (skill_inputs is not None):
             input = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
-        else:
-            raise ValueError("Use at least one of skills or items as input")
 
         output, hidden = self.lstm(input, hx=hidden)
         return self.out(self.dropout(output)), hidden
