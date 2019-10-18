@@ -1,8 +1,11 @@
 # kt-algos
 
 Simple and performant implementations of knowledge tracing algorithms:
+- [Performance Factors Analysis (PFA)](http://pact.cs.cmu.edu/koedinger/pubs/AIED%202009%20final%20Pavlik%20Cen%20Keodinger%20corrected.pdf)
 - [DAS3H](https://arxiv.org/pdf/1905.06873.pdf)
-- [DKT](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
+- [Deep Knowledge Tracing (DKT)](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
+- [Self-Attentive Knowledge Tracing (SAKT)](https://arxiv.org/pdf/1907.06837.pdf)
+- [Knowledge Query Network (KQN)](https://arxiv.org/pdf/1908.02146.pdf)
 
 ## Setup
 
@@ -37,10 +40,10 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 
 ## Training
 
-#### Logistic regression
+#### Logistic Regression
 
 To encode a sparse feature matrix with specified features:
-- IRT: `--item` 
+- Item Response Theory (IRT): `--item` 
 - PFA: `--item --skills --wins --attempts` 
 - DAS3H: `--item --skills --wins --attempts --time_windows` 
 
@@ -54,26 +57,28 @@ To train a logistic regression model with a sparse feature matrix encoded throug
 python train_lr.py data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
 ```
 
-#### Feedforward neural network baseline
-
-To encode a sparse feature matrix with specified features:
-
-```
-python encode_ffw.py --dataset <dataset codename> --total --items --skills --num_prev_interactions=1
-```
-
-To train a feedforward neural network model with a dense feature matrix encoded through encode_ffw.py:
-
-```
-python train_ffw.py data/<dataset codename>/X-ffw-tsi-1.npz --dataset <dataset codename>
-```
-
-#### Deep knowledge tracing
+#### Deep Knowledge Tracing
 
 To train a DKT model taking skills as input and outputting skills:
 
 ```
 python train_dkt.py --dataset <dataset codename> --skill_in --skill_out
+```
+
+#### Self-Attentive Knowledge Tracing
+
+To train a SAKT model taking skills as input and querying with skills:
+
+```
+python train_sakt.py --dataset <dataset codename> --skill_in --skill_out
+```
+
+#### Knowledge Query Network
+
+To train a KQN model taking skills as input and querying with skills:
+
+```
+python train_kqn.py --dataset <dataset codename> --skill_in --skill_out
 ```
 
 ## Results
@@ -83,4 +88,6 @@ python train_dkt.py --dataset <dataset codename> --skill_in --skill_out
 | IRT       | 0.69          | 0.71          | 0.64          | 0.68          | 0.75             | 0.77      |                  
 | PFA       | 0.77          | 0.75          | 0.70          | 0.71          | 0.80             | 0.83      | 
 | DAS3H     | -             | 0.75          | -             | 0.72          | 0.79             | 0.83      |
-| DKT       | 0.75          | 0.74          | 0.73          | 0.73          | 0.79             | 0.83      |
+| DKT       | 0.75          | 0.75          | 0.73          | 0.77          | 0.79             | 0.82      |
+| SAKT      | TODO          | TODO          | TODO          | TODO          | TODO             | TODO      |
+| KQN       | 0.76          | 0.75          | 0.73          | 0.76          | 0.79             | 0.83      |
