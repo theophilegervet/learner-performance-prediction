@@ -29,36 +29,9 @@ def attention(query, key, value, mask=None, dropout=None):
     return torch.matmul(prob_attn, value), prob_attn
 
 
-def relative_attention_key(query, key, value, pos_key_embeds, mask=None, dropout=None):
-    """Compute scaled dot product attention with relative position embeddings for the key.
-    https://arxiv.org/pdf/1803.02155.pdf
-    """
-    scores = torch.matmul(query, key.transpose(-2, -1))
-
-    idxs = torch.arange(scores.size(-1))
-    if query.is_cuda:
-        idxs = idxs.cuda()
-    idxs = idxs.view(-1, 1) - idxs.view(1, -1)
-    idxs = torch.clamp(idxs, 0, pos_key_embeds.num_embeddings - 1)
-
-    pos_key = pos_key_embeds(idxs).transpose(-2, -1)
-    pos_scores = torch.matmul(query.unsqueeze(-2), pos_key).squeeze(-2)
-    scores = scores + pos_scores
-    scores = scores / math.sqrt(query.size(-1))
-
-    if mask is not None:
-        scores = scores.masked_fill(mask, -1e9)
-    prob_attn = F.softmax(scores, dim=-1)
-    if dropout is not None:
-        prob_attn = dropout(prob_attn)
-    return torch.matmul(prob_attn, value), prob_attn
-
-
-def relative_attention_key_value(query, key, value, pos_key_embeds, pos_value_embeds,
-                                 mask=None, dropout=None):
-    """Compute scaled dot product attention with relative position embeddings for both
-    key and value.
-    https://arxiv.org/pdf/1803.02155.pdf
+def relative_attention(query, key, value, pos_key_embeds, pos_value_embeds, mask=None, dropout=None):
+    """Compute scaled dot product attention with relative position embeddings.
+    (https://arxiv.org/pdf/1803.02155.pdf)
     """
     assert pos_key_embeds.num_embeddings == pos_value_embeds.num_embeddings
 
@@ -99,7 +72,7 @@ class MultiHeadedAttention(nn.Module):
         self.linear_layers = clone(nn.Linear(total_size, total_size), 4)
         self.dropout = nn.Dropout(p=drop_prob)
 
-    def forward(self, query, key, value, pos_encoding, pos_key_embeds, pos_value_embeds, mask=None):
+    def forward(self, query, key, value, encode_pos, pos_key_embeds, pos_value_embeds, mask=None):
         batch_size, seq_length = query.shape[:2]
         
         # Apply mask to all heads
@@ -111,14 +84,11 @@ class MultiHeadedAttention(nn.Module):
                              for l, x in zip(self.linear_layers, (query, key, value))]
         
         # Apply attention
-        if pos_encoding == "none":
+        if encode_pos:
+            out, self.prob_attn = relative_attention(
+                query, key, value, pos_key_embeds, pos_value_embeds, mask, self.dropout)
+        else:
             out, self.prob_attn = attention(query, key, value, mask, self.dropout)
-        elif pos_encoding == "key":
-            out, self.prob_attn = relative_attention_key(
-                    query, key, value, pos_key_embeds, mask, self.dropout)
-        elif pos_encoding == "key_value":
-            out, self.prob_attn = relative_attention_key_value(
-                    query, key, value, pos_key_embeds, pos_value_embeds, mask, self.dropout)
         out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.total_size)
         
         # Project output
@@ -127,8 +97,8 @@ class MultiHeadedAttention(nn.Module):
 
 class SAKT(nn.Module):
     def __init__(self, num_items, num_skills, embed_size, num_attn_layers, num_heads,
-                 pos_encoding, max_pos, drop_prob, item_in, skill_in, item_out, skill_out):
-        """Self-attentive knowledge tracing.
+                 encode_pos, max_pos, drop_prob, item_in, skill_in, item_out, skill_out):
+        """Self-attentive knowledge tracing (https://arxiv.org/pdf/1907.06837.pdf).
 
         Arguments:
             num_items (int): number of items
@@ -136,7 +106,7 @@ class SAKT(nn.Module):
             embed_size (int): input embedding and attention dot-product dimension
             num_attn_layers (int): number of attention layers
             num_heads (int): number of parallel attention heads
-            pos_encoding (str): one of "none", "key", "key_value"
+            encode_pos (bool): if True, use relative position embeddings
             max_pos (int): number of position embeddings to use
             drop_prob (float): dropout probability
             item_in (bool): if True, use items as inputs
@@ -147,12 +117,13 @@ class SAKT(nn.Module):
         super(SAKT, self).__init__()
         self.num_items = num_items
         self.num_skills = num_skills
-        self.pos_encoding = pos_encoding
+        self.encode_pos = encode_pos
         self.item_in = item_in
         self.skill_in = skill_in
         self.item_out = item_out
         self.skill_out = skill_out
 
+        # Pad inputs with 0, this explains the +1
         if item_in and skill_in:
             self.item_input_embeds = nn.Embedding(2 * num_items + 1, embed_size // 2, padding_idx=0)
             self.skill_input_embeds = nn.Embedding(2 * num_skills + 1, embed_size // 2, padding_idx=0)
@@ -211,7 +182,7 @@ class SAKT(nn.Module):
 
         output = input
         for l in self.attn_layers:
-            residual = l(query, output, output, self.pos_encoding, self.pos_key_embeds,
+            residual = l(query, output, output, self.encode_pos, self.pos_key_embeds,
                          self.pos_value_embeds, mask)
             output = self.dropout(output + F.relu(residual))
         return self.out(output)

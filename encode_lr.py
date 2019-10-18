@@ -6,6 +6,9 @@ from scipy import sparse
 from collections import defaultdict
 from sklearn.preprocessing import OneHotEncoder
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 from utils.queue import TimeWindowQueue
 
 
@@ -56,7 +59,7 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
     # Build feature rows by iterating over users
     for user_id in df["user_id"].unique():
-        df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct"]].copy()
+        df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct", "skill_id"]].copy()
         df_user = df_user.values
         num_items_user = df_user.shape[0]
 
@@ -186,5 +189,4 @@ if __name__ == "__main__":
         features_suffix += '_tw'
 
     features = df_to_sparse(df, Q_mat, active_features, args.time_windows)
-
     sparse.save_npz(os.path.join(data_path, f"X-lr-{features_suffix}"), features)

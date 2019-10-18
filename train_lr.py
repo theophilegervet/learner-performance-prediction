@@ -38,8 +38,8 @@ if __name__ == "__main__":
     val = X[np.where(np.isin(user_ids, users_val))]
     
     # First 4 columns are the original dataset including correct in column 3
-    X_train, y_train = train[:, 4:], train[:, 3].toarray().flatten()
-    X_val, y_val = val[:, 4:], val[:, 3].toarray().flatten()
+    X_train, y_train = train[:, 5:], train[:, 3].toarray().flatten()
+    X_val, y_val = val[:, 5:], val[:, 3].toarray().flatten()
     
     model = LogisticRegression(solver="lbfgs", max_iter=args.iter)
     model.fit(X_train, y_train)

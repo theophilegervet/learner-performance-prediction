@@ -190,8 +190,7 @@ if __name__ == "__main__":
     parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--num_attn_layers', type=int, default=1)
     parser.add_argument('--num_heads', type=int, default=5)
-    parser.add_argument('--pos_encoding', type=str, default='none', 
-                        help='One of "none", "key", "key_value"')
+    parser.add_argument('--encode_pos', action='store_true')
     parser.add_argument('--max_pos', type=int, default=10)
     parser.add_argument('--drop_prob', type=float, default=0.2)
     parser.add_argument('--batch_size', type=int, default=100)
@@ -202,10 +201,9 @@ if __name__ == "__main__":
 
     assert (args.item_in or args.skill_in)    # Use at least one of skills or items as input
     assert (args.item_out or args.skill_out)  # Use at least one of skills or items as output
-    assert args.pos_encoding in ["none", "key", "key_value"]
 
-    # TODO when write results to file, train on train set only
-    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
+    # TODO preprocessed_data.csv
+    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
 
     train_data, val_data = get_data(df, args.max_length, args.item_in, args.skill_in, args.item_out,
                                     args.skill_out)
@@ -214,7 +212,7 @@ if __name__ == "__main__":
     num_skills = int(df["skill_id"].max() + 1) + 1
 
     model = SAKT(num_items, num_skills, args.embed_size, args.num_attn_layers, args.num_heads,
-                 args.pos_encoding, args.max_pos, args.drop_prob, args.item_in, args.skill_in,
+                 args.encode_pos, args.max_pos, args.drop_prob, args.item_in, args.skill_in,
                  args.item_out, args.skill_out).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
 
@@ -224,7 +222,7 @@ if __name__ == "__main__":
             param_str = (f'{args.dataset},'
                          f'batch_size={args.batch_size},'
                          f'max_length={args.max_length},'
-                         f'pos_encoding={args.pos_encoding},'
+                         f'encode_pos={args.encode_pos},'
                          f'max_pos={args.max_pos},'
                          f'item_in={args.item_in},'
                          f'skill_in={args.skill_in},'

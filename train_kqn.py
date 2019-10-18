@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.nn.utils.rnn import pad_sequence
 
-from model_dkt import DKT
+from model_kqn import KQN
 from utils import *
 
 
@@ -76,40 +76,25 @@ def prepare_batches(data, batch_size):
     return batches
 
 
-def get_preds(preds, item_ids, skill_ids, labels):
-    preds = preds[labels >= 0]
-
-    if (item_ids is not None):
-        item_ids = item_ids[labels >= 0]
-        preds = preds[torch.arange(preds.size(0)), item_ids]
-    elif (skill_ids is not None):
-        skill_ids = skill_ids[labels >= 0]
-        preds = preds[torch.arange(preds.size(0)), skill_ids]
-
-    return preds
-
-
-def compute_auc(preds, item_ids, skill_ids, labels):
-    preds = get_preds(preds, item_ids, skill_ids, labels)
+def compute_auc(preds, labels):
+    preds = preds[labels >= 0].flatten()
     labels = labels[labels >= 0].float()
-
     if len(torch.unique(labels)) == 1:  # Only one class
         auc = accuracy_score(labels, preds.round())
     else:
         auc = roc_auc_score(labels, preds)
-
     return auc
 
 
-def compute_loss(preds, item_ids, skill_ids, labels, criterion):
-    preds = get_preds(preds, item_ids, skill_ids, labels)
+def compute_loss(preds, labels, criterion):
+    preds = preds[labels >= 0].flatten()
     labels = labels[labels >= 0].float()
     return criterion(preds, labels)
 
 
 def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, batch_size, bptt=50):
-    """Train DKT model.
-    
+    """Train KQN model.
+
     Arguments:
         train_data (list of lists of torch Tensor)
         val_data (list of lists of torch Tensor)
@@ -125,7 +110,7 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
     criterion = nn.BCEWithLogitsLoss()
     metrics = Metrics()
     step = 0
-    
+
     for epoch in range(num_epochs):
         train_batches = prepare_batches(train_data, batch_size)
         val_batches = prepare_batches(val_data, batch_size)
@@ -133,24 +118,28 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         # Training
         for item_inputs, skill_inputs, item_ids, skill_ids, labels in train_batches:
             length = labels.size(1)
-            preds = torch.empty(labels.size(0), length, model.output_size)
+            preds = torch.empty(labels.size(0), length)
             preds = preds.cuda()
             item_inputs = cuda(item_inputs)
             skill_inputs = cuda(skill_inputs)
+            item_ids = cuda(item_ids)
+            skill_ids = cuda(skill_ids)
 
             # Truncated backprop through time
             for i in range(0, length, bptt):
                 item_inp = item_inputs[:, i:i + bptt] if item_inputs is not None else None
                 skill_inp = skill_inputs[:, i:i + bptt] if skill_inputs is not None else None
+                item_id = item_ids[:, i:i + bptt] if item_ids is not None else None
+                skill_id = skill_ids[:, i:i + bptt] if skill_ids is not None else None
                 if i == 0:
-                    pred, hidden = model(item_inp, skill_inp)
+                    pred, hidden = model(item_inp, skill_inp, item_id, skill_id)
                 else:
                     hidden = model.repackage_hidden(hidden)
-                    pred, hidden = model(item_inp, skill_inp, hidden)
+                    pred, hidden = model(item_inp, skill_inp, item_id, skill_id, hidden)
                 preds[:, i:i + bptt] = pred
 
-            loss = compute_loss(preds, item_ids, skill_ids, labels.cuda(), criterion)
-            train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), item_ids, skill_ids, labels)
+            loss = compute_loss(preds, labels.cuda(), criterion)
+            train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), labels)
 
             model.zero_grad()
             loss.backward()
@@ -162,11 +151,11 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
             # Logging
             if step % 20 == 0:
                 logger.log_scalars(metrics.average(), step)
-                #weights = {"weight/" + name: param for name, param in model.named_parameters()}
-                #grads = {"grad/" + name: param.grad
+                # weights = {"weight/" + name: param for name, param in model.named_parameters()}
+                # grads = {"grad/" + name: param.grad
                 #         for name, param in model.named_parameters() if param.grad is not None}
-                #logger.log_histograms(weights, step)
-                #logger.log_histograms(grads, step)
+                # logger.log_histograms(weights, step)
+                # logger.log_histograms(grads, step)
 
         # Validation
         model.eval()
@@ -174,8 +163,10 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
             with torch.no_grad():
                 item_inputs = cuda(item_inputs)
                 skill_inputs = cuda(skill_inputs)
-                preds, _ = model(item_inputs, skill_inputs)
-            val_auc = compute_auc(torch.sigmoid(preds).cpu(), item_ids, skill_ids, labels)
+                item_ids = cuda(item_ids)
+                skill_ids = cuda(skill_ids)
+                preds, _ = model(item_inputs, skill_inputs, item_ids, skill_ids)
+            val_auc = compute_auc(torch.sigmoid(preds).cpu(), labels)
             metrics.store({'auc/val': val_auc})
         model.train()
 
@@ -188,10 +179,10 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train DKT.')
+    parser = argparse.ArgumentParser(description='Train KQN.')
     parser.add_argument('--dataset', type=str)
-    parser.add_argument('--logdir', type=str, default='runs/dkt')
-    parser.add_argument('--savedir', type=str, default='save/dkt')
+    parser.add_argument('--logdir', type=str, default='runs/kqn')
+    parser.add_argument('--savedir', type=str, default='save/kqn')
     parser.add_argument('--item_in', action='store_true',
                         help='If True, use items as inputs.')
     parser.add_argument('--skill_in', action='store_true',
@@ -201,6 +192,7 @@ if __name__ == "__main__":
     parser.add_argument('--skill_out', action='store_true',
                         help='If True, use skills as outputs.')
     parser.add_argument('--hid_size', type=int, default=200)
+    parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--num_hid_layers', type=int, default=1)
     parser.add_argument('--drop_prob', type=float, default=0.5)
     parser.add_argument('--batch_size', type=int, default=100)
@@ -209,7 +201,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     assert (args.item_in or args.skill_in)    # Use at least one of skills or items as input
-    assert (args.item_out != args.skill_out)  # Use exactly one of skills or items as output
+    assert (args.item_out or args.skill_out)  # Use at least one of skills or items as output
 
     # TODO preprocessed_data.csv
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
@@ -219,8 +211,8 @@ if __name__ == "__main__":
     num_items = int(df["item_id"].max() + 1) + 1
     num_skills = int(df["skill_id"].max() + 1) + 1
 
-    model = DKT(num_items, num_skills, args.hid_size, args.num_hid_layers, args.drop_prob,
-                args.item_in, args.skill_in, args.item_out, args.skill_out).cuda()
+    model = KQN(num_items, num_skills, args.hid_size, args.embed_size, args.num_hid_layers,
+                args.drop_prob, args.item_in, args.skill_in, args.item_out, args.skill_out).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
 
     # Reduce batch size until it fits on GPU
