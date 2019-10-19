@@ -81,7 +81,6 @@ python train_sakt.py --dataset <dataset codename> --skill_in --skill_out
 | DAS3H         | -             | **0.75**      | -            | 0.72          | 0.79             | **0.83**  |
 | DKT           | 0.75          | **0.75**      | **0.73**     | **0.77**      | 0.79             | 0.82      |
 | SAKT          | 0.75          | 0.73          | 0.72         | 0.72          | 0.78             | 0.80      |
-| KQN           | 0.76          | **0.75**      | **0.73**     | 0.76          | 0.79             | **0.83**  |
 | DAS3H reported|               | 0.74          |              |               | 0.79             | **0.83**  |
 | DKT reported  | 0.82 cheating |               | **0.73**     | 0.73          |                  |           |
 | SAKT reported | 0.85 cheating |               | 0.85 cheating| 0.73          |                  |           |
