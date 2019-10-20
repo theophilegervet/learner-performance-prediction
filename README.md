@@ -21,6 +21,8 @@ The code supports the following datasets:
 - [ASSISTments Challenge 2017](https://sites.google.com/view/assistmentsdatamining) (assistments17)
 - [Bridge to Algebra 2006-2007](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (bridge_algebra06)
 - [Algebra I 2005-2006](https://pslcdatashop.web.cmu.edu/KDDCup/downloads.jsp) (algebra05)
+- [Spanish](https://github.com/robert-lindsey/WCRP) (spanish)
+- [Statics](https://pslcdatashop.web.cmu.edu) (statics)
 
 | Dataset          | # Users  | # Items | # Skills | # Interactions | Mean # skills/item | Timestamps | Median length |
 | ---------------- | -------- | ------- | -------- | -------------- | ------------------ | ---------- | ------------- |
@@ -30,6 +32,8 @@ The code supports the following datasets:
 | assistments17    | 1,708    | 3,162   | 102      | 942,814        | 1.23               | Yes        | 441           |
 | bridge_algebra06 | 1,146    | 129,263 | 493      | 1,817,476      | 1.01               | Yes        | 1,362         |
 | algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574           |
+| spanish          | 182      | 409     | 221      | 578,726        | 1.00               | No         | 1,924         |
+| statics          |          |         |          |                |                    |            |               |
 
 To use a dataset, download the data from one of the links above and place the main file under `data/<dataset codename>/data.csv` if it is an ASSISTments dataset and under `data/<dataset codename>/data.txt` otherwise. To preprocess a dataset:
 
@@ -53,7 +57,7 @@ python encode_lr.py --dataset <dataset codename> --items --skills --wins --attem
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
+python train_lr.py --X_file data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
 ```
 
 #### Deep Knowledge Tracing
