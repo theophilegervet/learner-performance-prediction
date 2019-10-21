@@ -33,13 +33,13 @@ The code supports the following datasets:
 | bridge_algebra06 | 1,146    | 129,263 | 493      | 1,817,476      | 1.01               | Yes        | 1,362         |
 | algebra05        | 574      | 173,113 | 112      | 607,025        | 1.36               | Yes        | 574           |
 | spanish          | 182      | 409     | 221      | 578,726        | 1.00               | No         | 1,924         |
-| statics          |          |         |          |                |                    |            |               |
+| statics          | 282      | 1,223   | 98       | 189,297        | 1.00               | No         | 635           |
 
 To use a dataset, download the data from one of the links above and:
 - place the main file under `data/<dataset codename>/data.csv` for an ASSISTments dataset
 - place the main file under `data/<dataset codename>/data.txt` for a KDDCup dataset
 - place the two data files under `data/<dataset codename>/{filename}` for the Spanish dataset
-- TODO for the Statics dataset
+- the Statics dataset is already preprocessed under `data/statics/preprocessed_data.csv`
 
 ```
 python prepare_data.py --dataset <dataset codename> --remove_nan_skills
@@ -82,14 +82,14 @@ python train_sakt.py --dataset <dataset codename> --skill_in --skill_out
 
 ## Results
 
-| Algorithm      | assist09      | assist12 | assist15      | assist17 | bridge06 | algebra05 | spanish  | statics |
-| -------------- | ------------- | -------- | ------------- | -------- | -------- | --------- | -------- | ------- |
-| IRT            | 0.69          | 0.71     | 0.64          | 0.68     | 0.75     | 0.77      | 0.68     |         |       
-| PFA            | **0.77**      | **0.75** | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** |         |
-| DAS3H          | -             | **0.75** | -             | 0.72     | 0.79     | **0.83**  |          |         |
-| DKT            | 0.75          | **0.75** | **0.73**      | **0.77** | 0.79     | 0.82      |          |         |
-| SAKT           | 0.75          | 0.73     | 0.72          | 0.72     | 0.78     | 0.80      |          |         |
-| DAS3H reported |               | 0.74     |               |          | 0.79     | **0.83**  |          |         |
-| DKT reported   | 0.82 cheating |          | **0.73**      | 0.73     |          |           | 0.83     | 0.76    |
-| SAKT reported  | 0.85 cheating |          | 0.85 cheating | 0.73     |          |           |          |         |
-| BKT+ reported  |               |          |               |          |          |           | 0.85     | 0.75    |
+| Algorithm      | assist09      | assist12 | assist15      | assist17 | bridge06 | algebra05 | spanish  | statics  |
+| -------------- | ------------- | -------- | ------------- | -------- | -------- | --------- | -------- | -------- |
+| IRT            | 0.69          | 0.71     | 0.64          | 0.68     | 0.75     | 0.77      | 0.68     | 0.79     |       
+| PFA            | **0.77**      | **0.75** | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** | 0.82     |
+| DAS3H          | -             | **0.75** | -             | 0.72     | 0.79     | **0.83**  | -        | -        |
+| DKT            | 0.75          | **0.75** | **0.73**      | **0.77** | 0.79     | 0.82      | 0.85     | **0.83** |
+| SAKT           | 0.75          | 0.73     | 0.72          | 0.72     | 0.78     | 0.80      | -        | 0.81     |
+| DAS3H reported | -             | 0.74     | -             | -        | 0.79     | **0.83**  | -        | -        |
+| DKT reported   | 0.86 cheating | -        | **0.73**      | 0.73     | -        | -         | 0.83     | 0.83     |
+| SAKT reported  | 0.85 cheating | -        | 0.85 cheating | 0.73     | -        | -         | -        | 0.85     |
+| BKT+ reported  | 0.83 cheating | -        | -             | -        | -        | -         | 0.85     | 0.75     |
