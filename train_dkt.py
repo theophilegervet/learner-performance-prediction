@@ -205,14 +205,13 @@ if __name__ == "__main__":
     parser.add_argument('--drop_prob', type=float, default=0.5)
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--lr', type=float, default=1e-2)
-    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--num_epochs', type=int, default=300)
     args = parser.parse_args()
 
     assert (args.item_in or args.skill_in)    # Use at least one of skills or items as input
     assert (args.item_out != args.skill_out)  # Use exactly one of skills or items as output
 
-    # TODO preprocessed_data.csv
-    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
+    df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
 
     train_data, val_data = get_data(df, args.item_in, args.skill_in, args.item_out, args.skill_out)
 

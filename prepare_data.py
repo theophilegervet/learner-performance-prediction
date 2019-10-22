@@ -15,7 +15,7 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
 
     Outputs:
         df (pandas DataFrame): preprocessed ASSISTments dataset with user_id, item_id,
-            timestamp and correct features
+            timestamp, correct and unique skill features
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
     data_path = os.path.join("data", data_name)
@@ -99,7 +99,7 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
 
     Outputs:
         df (pandas DataFrame): preprocessed KDD Cup 2010 dataset with user_id, item_id,
-            timestamp and correct features
+            timestamp, correct and unique skill features
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
     data_path = os.path.join("data", data_name)
@@ -168,7 +168,7 @@ def prepare_squirrel_ai(min_interactions_per_user):
 
     Outputs:
         df (pandas DataFrame): preprocessed Squirrel AI dataset with user_id, item_id,
-            timestamp and correct features
+            timestamp, correct and unique skill features
         Q_mat (item-skill relationships sparse array): corresponding q-matrix
     """
     data_path = "data/squirrel_ai"
@@ -215,13 +215,44 @@ def prepare_squirrel_ai(min_interactions_per_user):
 
     # Save data
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
-    train_df.to_csv(os.path.join(data_path, f"preprocessed_data.csv"), sep="\t", index=False)
+    train_df.to_csv(os.path.join(data_path, f"preprocessed_data_train.csv"), sep="\t", index=False)
     test_df.to_csv(os.path.join(data_path, f"preprocessed_data_test.csv"), sep="\t", index=False)
+
+
+def prepare_spanish():
+    """Preprocess Spanish dataset.
+
+    Outputs:
+        df (pandas DataFrame): preprocessed Spanish dataset with user_id, item_id,
+            timestamp, correct and unique skill features
+        Q_mat (item-skill relationships sparse array): corresponding q-matrix
+    """
+    data_path = "data/spanish"
+
+    data = np.loadtxt(os.path.join(data_path, "spanish_dataset.txt"), dtype=int)
+    df = pd.DataFrame(data=data, columns=("user_id", "item_id", "correct"))
+
+    skills = np.loadtxt(os.path.join(data_path, "spanish_expert_labels.txt"))
+    df["skill_id"] = skills[df["item_id"]].astype(np.int64)
+
+    df["timestamp"] = np.zeros(len(df), np.int64)
+
+    df = df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
+    df.reset_index(inplace=True, drop=True)
+
+    # Build Q-matrix
+    Q_mat = np.zeros((df["item_id"].nunique(), df["skill_id"].nunique()))
+    for item_id, skill_id in df[["item_id", "skill_id"]].values:
+        Q_mat[item_id, skill_id] = 1
+
+    # Save data
+    sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
+    df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Prepare datasets.')
-    parser.add_argument('--dataset', type=str, default='assistments12')
+    parser.add_argument('--dataset', type=str, default='assistments09')
     parser.add_argument('--min_interactions', type=int, default=10)
     parser.add_argument('--remove_nan_skills', action='store_true')
     args = parser.parse_args()
@@ -246,3 +277,5 @@ if __name__ == "__main__":
     elif args.dataset == "squirrel_ai":
         prepare_squirrel_ai(
             min_interactions_per_user=args.min_interactions)
+    elif args.dataset == "spanish":
+        prepare_spanish()
