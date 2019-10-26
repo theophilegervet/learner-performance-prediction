@@ -70,6 +70,7 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
         item_ids = df_user[:, 1].reshape(-1, 1)
         labels = df_user[:, 3].reshape(-1, 1)
 
+        # Current skills one hot encoding
         if 'skills' in active_features:
             features['skills'] = sparse.vstack([features["skills"], sparse.csr_matrix(skills)])
 
@@ -79,10 +80,11 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 for i, (item_id, ts) in enumerate(df_user[:, 1:3]):
                     # Past attempts for relevant skills
-                    for skill_id in Q_mat_dict[item_id]:
-                        counts = phi(np.array(counters[user_id, skill_id, "skill"].get_counters(ts)))
-                        attempts[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
-                        counters[user_id, skill_id, "skill"].push(ts)
+                    if 'skills' in active_features:
+                        for skill_id in Q_mat_dict[item_id]:
+                            counts = phi(np.array(counters[user_id, skill_id, "skill"].get_counters(ts)))
+                            attempts[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
+                            counters[user_id, skill_id, "skill"].push(ts)
 
                     # Past attempts for item
                     counts = phi(np.array(counters[user_id, item_id, "item"].get_counters(ts)))
@@ -98,8 +100,9 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
                 attempts = np.zeros((num_items_user, num_skills + 2))
 
                 # Past attempts for relevant skills
-                tmp = np.vstack((np.zeros(num_skills), skills))[:-1]
-                attempts[:, :num_skills] = phi(np.cumsum(tmp, 0) * skills)
+                if 'skills' in active_features:
+                    tmp = np.vstack((np.zeros(num_skills), skills))[:-1]
+                    attempts[:, :num_skills] = phi(np.cumsum(tmp, 0) * skills)
 
                 # Past attempts for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
@@ -118,11 +121,12 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
 
                 for i, (item_id, ts, correct) in enumerate(df_user[:, 1:4]):
                     # Past wins for relevant skills
-                    for skill_id in Q_mat_dict[item_id]:
-                        counts = phi(np.array(counters[user_id, skill_id, "skill", "correct"].get_counters(ts)))
-                        wins[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
-                        if correct:
-                            counters[user_id, skill_id, "skill", "correct"].push(ts)
+                    if 'skills' in active_features:
+                        for skill_id in Q_mat_dict[item_id]:
+                            counts = phi(np.array(counters[user_id, skill_id, "skill", "correct"].get_counters(ts)))
+                            wins[i, skill_id * num_windows:(skill_id + 1) * num_windows] = counts
+                            if correct:
+                                counters[user_id, skill_id, "skill", "correct"].push(ts)
 
                     # Past wins for item
                     counts = phi(np.array(counters[user_id, item_id, "item", "correct"].get_counters(ts)))
@@ -140,9 +144,10 @@ def df_to_sparse(df, Q_mat, active_features, time_windows):
                 wins = np.zeros((num_items_user, num_skills + 2))
 
                 # Past wins for relevant skills
-                tmp = np.vstack((np.zeros(num_skills), skills))[:-1]
-                corrects = np.hstack((np.array(0), df_user[:, 3])).reshape(-1, 1)[:-1]
-                wins[:, :num_skills] = phi(np.cumsum(tmp * corrects, 0) * skills)
+                if 'skills' in active_features:
+                    tmp = np.vstack((np.zeros(num_skills), skills))[:-1]
+                    corrects = np.hstack((np.array(0), df_user[:, 3])).reshape(-1, 1)[:-1]
+                    wins[:, :num_skills] = phi(np.cumsum(tmp * corrects, 0) * skills)
 
                 # Past wins for item
                 onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)

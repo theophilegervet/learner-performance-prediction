@@ -1,6 +1,7 @@
 .*
 *.ipynb
 *.sh
+*.png
 !/.gitignore
 __pycache__
 run.sh
