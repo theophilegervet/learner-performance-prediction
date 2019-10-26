@@ -51,17 +51,17 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 
 To encode a sparse feature matrix with specified features:
 - Item Response Theory (IRT): `--item` 
-- PFA: `--item --skills --wins --attempts` 
-- DAS3H: `--item --skills --wins --attempts --time_windows` 
+- PFA: `--item --skills --total --wins_history --attempts_history` 
+- DAS3H: `--item --skills --total --wins_history --attempts_history --time_windows`
 
 ```
-python encode_lr.py --dataset <dataset codename> --items --skills --wins --attempts --time_windows
+python encode_lr.py --dataset <dataset codename> ---item --skills --total --wins_history --attempts_history
 ```
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py --X_file data/<dataset codename>/X-lr-iswa_tw.npz --dataset <dataset codename>
+python train_lr.py --X_file data/<dataset codename>/X-lr-istwa_tw.npz --dataset <dataset codename>
 ```
 
 #### Deep Knowledge Tracing
