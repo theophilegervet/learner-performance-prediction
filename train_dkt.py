@@ -193,7 +193,7 @@ def add_time_factor(df):
         df_student = df[df['user_id'] == student_id]
         student_timestamp_min = df_student['timestamp'].min()
         student_timestamp_max = df_student['timestamp'].max()
-        additional_rows = [[student_id, -1, timestamp, -1, -1] for timestamp in range(student_timestamp_min + 24 * 3600, student_timestamp_max, 24 * 3600)]
+        additional_rows = [[student_id, -1, timestamp, -1, -1] for timestamp in range(student_timestamp_min + 7 * 24 * 3600, student_timestamp_max, 7 * 24 * 3600)]
         df_to_add = pd.DataFrame(additional_rows, columns=['user_id', 'item_id', 'timestamp', 'correct', 'skill_id'])
         final_students_df.append(df_to_add)
     return pd.concat(final_students_df).sort_values(by='timestamp').reset_index(drop=True).astype(int)
