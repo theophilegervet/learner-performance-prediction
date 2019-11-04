@@ -15,7 +15,7 @@ def cuda(tensor):
     return tensor.cuda() if tensor is not None else None
 
 
-def get_data(df, item_in, skill_in, item_out, skill_out, train_split=0.8):
+def get_data(df, item_in, skill_in, item_out, skill_out, skill_separate, train_split=0.8):
     """Extract sequences from dataframe.
 
     Arguments:
@@ -26,12 +26,13 @@ def get_data(df, item_in, skill_in, item_out, skill_out, train_split=0.8):
         skill_out (bool): if True, use skills as outputs
         train_split (float): proportion of data to use for training
     """
+    idx = ["user_id", "skill_id"] if skill_separate else "user_id"
     item_ids = [torch.tensor(u_df["item_id"].values, dtype=torch.long)
-                for _, u_df in df.groupby("user_id")]
+                for _, u_df in df.groupby(idx)]
     skill_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
-                 for _, u_df in df.groupby("user_id")]
+                 for _, u_df in df.groupby(idx)]
     labels = [torch.tensor(u_df["correct"].values, dtype=torch.long)
-              for _, u_df in df.groupby("user_id")]
+              for _, u_df in df.groupby(idx)]
 
     item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i * 2 + l + 1))[:-1]
                    for (i, l) in zip(item_ids, labels)]
@@ -200,6 +201,8 @@ if __name__ == "__main__":
                         help='If True, use items as outputs.')
     parser.add_argument('--skill_out', action='store_true',
                         help='If True, use skills as outputs.')
+    parser.add_argument('--skill_separate', action='store_true',
+                        help='If True, train a separate model for every skill.')
     parser.add_argument('--hid_size', type=int, default=200)
     parser.add_argument('--num_hid_layers', type=int, default=1)
     parser.add_argument('--drop_prob', type=float, default=0.5)
@@ -213,7 +216,8 @@ if __name__ == "__main__":
 
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
 
-    train_data, val_data = get_data(df, args.item_in, args.skill_in, args.item_out, args.skill_out)
+    train_data, val_data = get_data(df, args.item_in, args.skill_in, args.item_out,
+                                    args.skill_out, args.skill_separate)
 
     num_items = int(df["item_id"].max() + 1) + 1
     num_skills = int(df["skill_id"].max() + 1) + 1
@@ -230,7 +234,8 @@ if __name__ == "__main__":
                          f'item_in={args.item_in},'
                          f'skill_in={args.skill_in},'
                          f'item_out={args.item_out},'
-                         f'skill_out={args.skill_out}')
+                         f'skill_out={args.skill_out}'
+                         f'skill_separate={args.skill_separate}')
             logger = Logger(os.path.join(args.logdir, param_str))
             saver = Saver(args.savedir, param_str)
             train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)

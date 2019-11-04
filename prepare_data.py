@@ -90,7 +90,6 @@ def prepare_assistments(data_name, min_interactions_per_user, remove_nan_skills)
     bkt_split = np.random.randint(low=0, high=5, size=df["user_id"].nunique()).reshape(1, -1)
 
     # Save data
-    # TODO
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
     df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
     np.savetxt(os.path.join(data_path, "bkt_dataset.txt"), bkt_dataset, fmt='%i')
@@ -166,9 +165,17 @@ def prepare_kddcup10(data_name, min_interactions_per_user, kc_col_name, remove_n
     df = df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
     df.reset_index(inplace=True, drop=True)
 
+    # Text files for BKT implementation (https://github.com/robert-lindsey/WCRP/)
+    bkt_dataset = df[["user_id", "item_id", "correct"]]
+    bkt_skills = unique_skill_ids
+    bkt_split = np.random.randint(low=0, high=5, size=df["user_id"].nunique()).reshape(1, -1)
+
     # Save data
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
     df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
+    np.savetxt(os.path.join(data_path, "bkt_dataset.txt"), bkt_dataset, fmt='%i')
+    np.savetxt(os.path.join(data_path, "bkt_expert_labels.txt"), bkt_skills, fmt='%i')
+    np.savetxt(os.path.join(data_path, "bkt_splits.txt"), bkt_split, fmt='%i')
 
 
 def prepare_squirrel_ai(min_interactions_per_user):
@@ -221,13 +228,24 @@ def prepare_squirrel_ai(min_interactions_per_user):
 
     train_df = train_df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
     test_df = test_df[["user_id", "item_id", "timestamp", "correct", "skill_id"]]
+    df = pd.concat([train_df, test_df])
     train_df.reset_index(inplace=True, drop=True)
     test_df.reset_index(inplace=True, drop=True)
+    df.reset_index(inplace=True, drop=True)
+
+    # Text files for BKT implementation (https://github.com/robert-lindsey/WCRP/)
+    bkt_dataset = df[["user_id", "item_id", "correct"]]
+    bkt_skills = unique_skill_ids
+    bkt_split = np.random.randint(low=0, high=5, size=df["user_id"].nunique()).reshape(1, -1)
 
     # Save data
     sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
     train_df.to_csv(os.path.join(data_path, f"preprocessed_data_train.csv"), sep="\t", index=False)
     test_df.to_csv(os.path.join(data_path, f"preprocessed_data_test.csv"), sep="\t", index=False)
+    df.to_csv(os.path.join(data_path, f"preprocessed_data.csv"), sep="\t", index=False)
+    np.savetxt(os.path.join(data_path, "bkt_dataset.txt"), bkt_dataset, fmt='%i')
+    np.savetxt(os.path.join(data_path, "bkt_expert_labels.txt"), bkt_skills, fmt='%i')
+    np.savetxt(os.path.join(data_path, "bkt_splits.txt"), bkt_split, fmt='%i')
 
 
 def prepare_spanish():

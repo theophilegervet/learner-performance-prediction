@@ -21,8 +21,8 @@ def get_preds(preds, item_ids, skill_ids, labels):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Write logistic regression and PFA predictions to a dataframe.')
+    parser = argparse.ArgumentParser(description='Write logistic regression and DKT predictions to a dataframe.')
+    parser.add_argument('--X_file', type=str)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--dkt_path', type=str)
     parser.add_argument('--max_iter', type=int, default=1000)
@@ -30,7 +30,9 @@ if __name__ == "__main__":
 
     dkt = torch.load(args.dkt_path)
 
-    X = csr_matrix(load_npz(f'data/{args.dataset}/X-lr-iswa.npz'))
+    # Load sparse dataset
+    X = csr_matrix(load_npz(args.X_file))
+
     user_ids = X[:, 0].toarray().flatten()
     users_train = pd.read_csv(f'data/{args.dataset}/preprocessed_data_train.csv', sep="\t")["user_id"].unique()
     users_test = pd.read_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t")["user_id"].unique()
@@ -40,18 +42,17 @@ if __name__ == "__main__":
     y_train = X_train[:, 3].toarray().flatten()
     y_test = X_test[:, 3].toarray().flatten()
 
-    # Train PFA
+    # Train logistic regression
     model = LogisticRegression(solver="lbfgs", max_iter=args.max_iter)
     model.fit(X_train[:, 5:], y_train)
-    pfa_preds = model.predict_proba(X_test[:, 5:])[:, 1]
+    lr_preds = model.predict_proba(X_test[:, 5:])[:, 1]
 
-    pfa_data = np.concatenate((X_test[:, :5].toarray(), pfa_preds.reshape(-1, 1)), axis=1)
-    pfa_df = pd.DataFrame(data=pfa_data,
-                          columns=["user_id", "item_id", "timestamp", "correct", "skill_id", "PFA"])
+    lr_data = np.concatenate((X_test[:, :5].toarray(), lr_preds.reshape(-1, 1)), axis=1)
+    lr_df = pd.DataFrame(data=lr_data, columns=["user_id", "item_id", "timestamp", "correct", "skill_id", "LR"])
 
     full_data = None
 
-    for _, u_df in pfa_df.groupby("user_id"):
+    for _, u_df in lr_df.groupby("user_id"):
         item_ids = torch.tensor(u_df["item_id"].values, dtype=torch.long)
         skill_ids = torch.tensor(u_df["skill_id"].values, dtype=torch.long)
         labels = torch.tensor(u_df["correct"].values, dtype=torch.long)
@@ -73,10 +74,10 @@ if __name__ == "__main__":
         full_data = new_data if full_data is None else np.vstack((full_data, new_data))
 
     full_df = pd.DataFrame(data=full_data,
-                           columns=["user_id", "item_id", "timestamp", "correct", "skill_id", "PFA", "DKT"])
+                           columns=["user_id", "item_id", "timestamp", "correct", "skill_id", "LR", "DKT"])
 
-    pfa_auc = roc_auc_score(full_df["correct"], full_df["PFA"])
+    lr_auc = roc_auc_score(full_df["correct"], full_df["LR"])
     dkt_auc = roc_auc_score(full_df["correct"], full_df["DKT"])
-    print(f"{args.dataset}: pfa_auc={pfa_auc}, dkt_auc={dkt_auc}")
+    print(f"{args.dataset}: lr_auc={lr_auc}, dkt_auc={dkt_auc}")
 
     full_df.to_csv(f'data/{args.dataset}/predictions_test.csv', sep="\t", index=False)
