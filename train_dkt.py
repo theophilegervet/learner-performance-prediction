@@ -187,6 +187,16 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         if stop:
             break
 
+def add_time_factor(df):
+    final_students_df = [df]
+    for student_id in df['user_id'].unique():
+        df_student = df[df['user_id'] == student_id]
+        student_timestamp_min = df_student['timestamp'].min()
+        student_timestamp_max = df_student['timestamp'].max()
+        additional_rows = [[student_id, -1, timestamp, -1, -1] for timestamp in range(student_timestamp_min + 24 * 3600, student_timestamp_max, 24 * 3600)]
+        df_to_add = pd.DataFrame(additional_rows, columns=['user_id', 'item_id', 'timestamp', 'correct', 'skill_id'])
+        final_students_df.append(df_to_add)
+    return pd.concat(final_students_df).sort_values(by='timestamp').reset_index(drop=True).astype(int)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DKT.')
@@ -209,13 +219,16 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--lr', type=float, default=1e-2)
     parser.add_argument('--num_epochs', type=int, default=300)
+    parser.add_argument('--time_factor', action='store_true', help='If True, adds empty traces every week')
+
     args = parser.parse_args()
 
     assert (args.item_in or args.skill_in)    # Use at least one of skills or items as input
     assert (args.item_out != args.skill_out)  # Use exactly one of skills or items as output
 
     df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
-
+    if args.time_factor:
+        df = add_time_factor(df)
     train_data, val_data = get_data(df, args.item_in, args.skill_in, args.item_out,
                                     args.skill_out, args.skill_separate)
 
