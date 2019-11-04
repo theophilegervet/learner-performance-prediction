@@ -50,18 +50,19 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 #### Logistic Regression
 
 To encode a sparse feature matrix with specified features:
-- Item Response Theory (IRT): `--item` 
-- PFA: `--item --skills --total --wins_history --attempts_history` 
-- DAS3H: `--item --skills --total --wins_history --attempts_history --time_windows`
+- Item Response Theory (IRT): `--i` 
+- PFA: `-s -sc -w -a` 
+- DAS3H: `-i -s -sc -w -a -tw`
+- Best model (Best-LR): `-i -s -ic -sc -tc -w -a -tw`
 
 ```
-python encode_lr.py --dataset <dataset codename> ---item --skills --total --wins_history --attempts_history
+python encode.py --dataset <dataset codename> <feature flags>
 ```
 
 To train a logistic regression model with a sparse feature matrix encoded through encode_lr.py:
 
 ```
-python train_lr.py --X_file data/<dataset codename>/X-lr-istwa_tw.npz --dataset <dataset codename>
+python train_lr.py --X_file data/<dataset codename>/X-<feature suffix>.npz --dataset <dataset codename>
 ```
 
 #### Deep Knowledge Tracing
@@ -85,11 +86,8 @@ python train_sakt.py --dataset <dataset codename> --skill_in --skill_out
 | Algorithm      | assist09      | assist12 | assist15      | assist17 | bridge06 | algebra05 | spanish  | statics  |
 | -------------- | ------------- | -------- | ------------- | -------- | -------- | --------- | -------- | -------- |
 | IRT            | 0.69          | 0.71     | 0.64          | 0.68     | 0.75     | 0.77      | 0.68     | 0.79     |       
-| PFA            | **0.77**      | **0.75** | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** | 0.82     |
-| DAS3H          | -             | **0.75** | -             | 0.72     | 0.79     | **0.83**  | -        | -        |
+| PFA            | 0.72.         | 0.68     | 0.69          | 0.62     | 0.77     | 0.76      | 0.85     | 0.69     |
+| DAS3H          | -             | 0.74     | -             | 0.69     | 0.79     | **0.83**  | -        | -        |
 | DKT            | 0.75          | **0.75** | **0.73**      | **0.77** | 0.79     | 0.82      | 0.85     | **0.83** |
 | SAKT           | 0.75          | 0.73     | 0.72          | 0.72     | 0.78     | 0.80      | -        | 0.81     |
-| DAS3H reported | -             | 0.74     | -             | -        | 0.79     | **0.83**  | -        | -        |
-| DKT reported   | 0.86 cheating | -        | **0.73**      | 0.73     | -        | -         | 0.83     | 0.83     |
-| SAKT reported  | 0.85 cheating | -        | 0.85 cheating | 0.73     | -        | -         | -        | 0.85     |
-| BKT+ reported  | 0.83 cheating | -        | -             | -        | -        | -         | 0.85     | 0.75     |
+| Best-LR        | **0.77**      | **0.75** | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** | 0.82     |
