@@ -92,7 +92,7 @@ def compute_loss(preds, labels, criterion):
 
 
 def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, batch_size, grad_clip):
-    """Train SAHKT model.
+    """Train SAKT model.
 
     Arguments:
         train_data (list of tuples of torch Tensor)

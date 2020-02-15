@@ -69,7 +69,7 @@ class MultiHeadedAttention(nn.Module):
         self.total_size = total_size
         self.head_size = total_size // num_heads
         self.num_heads = num_heads
-        self.linear_layers = clone(nn.Linear(total_size, total_size), 4)
+        self.linear_layers = clone(nn.Linear(total_size, total_size), 3)
         self.dropout = nn.Dropout(p=drop_prob)
 
     def forward(self, query, key, value, encode_pos, pos_key_embeds, pos_value_embeds, mask=None):
@@ -89,16 +89,15 @@ class MultiHeadedAttention(nn.Module):
                 query, key, value, pos_key_embeds, pos_value_embeds, mask, self.dropout)
         else:
             out, self.prob_attn = attention(query, key, value, mask, self.dropout)
-        out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.total_size)
 
-        # Project output
-        return self.linear_layers[-1](out)
+        out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.total_size)
+        return out
 
 
 class SAKT(nn.Module):
     def __init__(self, num_items, num_skills, embed_size, num_attn_layers, num_heads,
                  encode_pos, max_pos, drop_prob):
-        """Hierarchical self-attentive knowledge tracing.
+        """Self-attentive knowledge tracing.
 
         Arguments:
             num_items (int): number of items
@@ -124,8 +123,8 @@ class SAKT(nn.Module):
         self.attn_layers = clone(MultiHeadedAttention(embed_size, num_heads, drop_prob), num_attn_layers)
         self.dropout = nn.Dropout(p=drop_prob)
         self.lin_out = nn.Linear(embed_size, 1)
-
-    def forward(self, item_inputs, skill_inputs, label_inputs, item_ids, skill_ids):
+        
+    def get_inputs(self, item_inputs, skill_inputs, label_inputs):
         item_inputs = self.item_embeds(item_inputs)
         skill_inputs = self.skill_embeds(skill_inputs)
         label_inputs = label_inputs.unsqueeze(-1).float()
@@ -133,19 +132,29 @@ class SAKT(nn.Module):
         inputs = torch.cat([item_inputs, skill_inputs, item_inputs, skill_inputs], dim=-1)
         inputs[..., :self.embed_size] *= label_inputs
         inputs[..., self.embed_size:] *= 1 - label_inputs
-        inputs = F.relu(self.lin_in(inputs))
+        return inputs
 
+    def get_query(self, item_ids, skill_ids):
         item_ids = self.item_embeds(item_ids)
         skill_ids = self.skill_embeds(skill_ids)
         query = torch.cat([item_ids, skill_ids], dim=-1)
+        return query
+
+    def forward(self, item_inputs, skill_inputs, label_inputs, item_ids, skill_ids):
+        inputs = self.get_inputs(item_inputs, skill_inputs, label_inputs)
+        inputs = F.relu(self.lin_in(inputs))
+
+        query = self.get_query(item_ids, skill_ids)
 
         mask = future_mask(inputs.size(-2))
         if inputs.is_cuda:
             mask = mask.cuda()
 
-        outputs = inputs
-        for l in self.attn_layers:
+        outputs = self.dropout(self.attn_layers[0](query, inputs, inputs, self.encode_pos,
+                                                   self.pos_key_embeds, self.pos_value_embeds, mask))
+        for l in self.attn_layers[1:]:
             residual = l(query, outputs, outputs, self.encode_pos, self.pos_key_embeds,
                          self.pos_value_embeds, mask)
             outputs = self.dropout(outputs + F.relu(residual))
+
         return self.lin_out(outputs)
