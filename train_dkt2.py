@@ -20,16 +20,16 @@ def get_data(df, train_split=0.8, randomize=True):
     """
     item_ids = [torch.tensor(u_df["item_id"].values, dtype=torch.long)
                 for _, u_df in df.groupby("user_id")]
-    skill_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
+    KP_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
                  for _, u_df in df.groupby("user_id")]
     labels = [torch.tensor(u_df["correct"].values, dtype=torch.long)
               for _, u_df in df.groupby("user_id")]
 
-    item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i + 1))[:-1] for i in item_ids]
-    skill_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s + 1))[:-1] for s in skill_ids]
+    item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i))[:-1] for i in item_ids]
+    KP_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s))[:-1] for s in KP_ids]
     label_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), l))[:-1] for l in labels]
 
-    data = list(zip(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels))
+    data = list(zip(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels))
     if randomize:
         shuffle(data)
 
@@ -80,7 +80,7 @@ def compute_loss(preds, labels, criterion):
     return criterion(preds, labels)
 
 
-def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, batch_size, bptt=50):
+def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, batch_size):
     """Train DKT model.
 
     Arguments:
@@ -92,7 +92,6 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         saver: wrapper for torch saving
         num_epochs (int): number of epochs to train for
         batch_size (int)
-        bptt (int): length of truncated backprop through time chunks
     """
     criterion = nn.BCEWithLogitsLoss()
     metrics = Metrics()
@@ -103,29 +102,13 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         val_batches = prepare_batches(val_data, batch_size)
 
         # Training
-        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in train_batches:
-            length = labels.size(1)
-            preds = torch.empty(labels.size(0), length)
-            preds = preds.cuda()
+        for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in train_batches:
             item_inputs = item_inputs.cuda()
-            skill_inputs = skill_inputs.cuda()
+            KP_inputs = KP_inputs.cuda()
             label_inputs = label_inputs.cuda()
             item_ids = item_ids.cuda()
-            skill_ids = skill_ids.cuda()
-
-            # Truncated backprop through time
-            for i in range(0, length, bptt):
-                item_inp = item_inputs[:, i:i + bptt]
-                skill_inp = skill_inputs[:, i:i + bptt]
-                label_inp = label_inputs[:, i:i + bptt]
-                item_id = item_ids[:, i:i + bptt]
-                skill_id = skill_ids[:, i:i + bptt]
-                if i == 0:
-                    pred, hidden = model(item_inp, skill_inp, label_inp, item_id, skill_id)
-                else:
-                    hidden = model.repackage_hidden(hidden)
-                    pred, hidden = model(item_inp, skill_inp, label_inp, item_id, skill_id, hidden)
-                preds[:, i:i + bptt] = pred
+            KP_ids = KP_ids.cuda()
+            preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
 
             loss = compute_loss(preds, labels.cuda(), criterion)
             train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), labels)
@@ -140,22 +123,17 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
             # Logging
             if step % 20 == 0:
                 logger.log_scalars(metrics.average(), step)
-                # weights = {"weight/" + name: param for name, param in model.named_parameters()}
-                # grads = {"grad/" + name: param.grad
-                #         for name, param in model.named_parameters() if param.grad is not None}
-                # logger.log_histograms(weights, step)
-                # logger.log_histograms(grads, step)
 
         # Validation
         model.eval()
-        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in val_batches:
+        for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in val_batches:
             with torch.no_grad():
                 item_inputs = item_inputs.cuda()
-                skill_inputs = skill_inputs.cuda()
+                KP_inputs = KP_inputs.cuda()
                 label_inputs = label_inputs.cuda()
                 item_ids = item_ids.cuda()
-                skill_ids = skill_ids.cuda()
-                preds, _ = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+                KP_ids = KP_ids.cuda()
+                preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
             val_auc = compute_auc(torch.sigmoid(preds).cpu(), labels)
             metrics.store({'auc/val': val_auc})
         model.train()
@@ -169,10 +147,10 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train DKT2.')
+    parser = argparse.ArgumentParser(description='Train DKT.')
     parser.add_argument('--dataset', type=str)
-    parser.add_argument('--logdir', type=str, default='runs/dkt2')
-    parser.add_argument('--savedir', type=str, default='save/dkt2')
+    parser.add_argument('--logdir', type=str, default='runs/dkt')
+    parser.add_argument('--savedir', type=str, default='save/dkt')
     parser.add_argument('--hid_size', type=int, default=200)
     parser.add_argument('--embed_size', type=int, default=200)
     parser.add_argument('--num_hid_layers', type=int, default=1)
@@ -180,7 +158,10 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--lr', type=float, default=1e-2)
     parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
+
+    set_random_seeds(args.seed)
 
     full_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
     train_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
@@ -188,18 +169,15 @@ if __name__ == "__main__":
 
     train_data, val_data = get_data(train_df, train_split=0.8)
 
-    num_items = int(full_df["item_id"].max() + 1)
-    num_skills = int(full_df["skill_id"].max() + 1)
-
-    model = DKT2(num_items, num_skills, args.hid_size, args.embed_size, args.num_hid_layers,
-                 args.drop_prob).cuda()
+    model = DKT2(int(full_df["item_id"].max()), int(full_df["skill_id"].max()), args.hid_size,
+                 args.embed_size, args.num_hid_layers, args.drop_prob).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
 
     # Reduce batch size until it fits on GPU
     while True:
         try:
             # Train
-            param_str = f'{args.dataset},batch_size={args.batch_size}'
+            param_str = f"{args.dataset},{args.seed},batch={args.batch_size},emb={args.embed_size},hid={args.hid_size}"
             logger = Logger(os.path.join(args.logdir, param_str))
             saver = Saver(args.savedir, param_str)
             train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)
@@ -207,7 +185,7 @@ if __name__ == "__main__":
         except RuntimeError:
             args.batch_size = args.batch_size // 2
             print(f'Batch does not fit on gpu, reducing size to {args.batch_size}')
-
+    
     logger.close()
 
     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
@@ -216,14 +194,14 @@ if __name__ == "__main__":
 
     # Predict on test set
     model.eval()
-    for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
+    for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in test_batches:
         with torch.no_grad():
             item_inputs = item_inputs.cuda()
-            skill_inputs = skill_inputs.cuda()
+            KP_inputs = KP_inputs.cuda()
             label_inputs = label_inputs.cuda()
             item_ids = item_ids.cuda()
-            skill_ids = skill_ids.cuda()
-            preds, _ = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+            KP_ids = KP_ids.cuda()
+            preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
             preds = torch.sigmoid(preds[labels >= 0]).cpu().numpy()
             test_preds = np.concatenate([test_preds, preds])
 
