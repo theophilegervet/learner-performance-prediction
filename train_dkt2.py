@@ -20,16 +20,16 @@ def get_data(df, train_split=0.8, randomize=True):
     """
     item_ids = [torch.tensor(u_df["item_id"].values, dtype=torch.long)
                 for _, u_df in df.groupby("user_id")]
-    KP_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
+    skill_ids = [torch.tensor(u_df["skill_id"].values, dtype=torch.long)
                  for _, u_df in df.groupby("user_id")]
     labels = [torch.tensor(u_df["correct"].values, dtype=torch.long)
               for _, u_df in df.groupby("user_id")]
 
     item_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), i))[:-1] for i in item_ids]
-    KP_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s))[:-1] for s in KP_ids]
+    skill_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), s))[:-1] for s in skill_ids]
     label_inputs = [torch.cat((torch.zeros(1, dtype=torch.long), l))[:-1] for l in labels]
 
-    data = list(zip(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels))
+    data = list(zip(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels))
     if randomize:
         shuffle(data)
 
@@ -102,13 +102,13 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
         val_batches = prepare_batches(val_data, batch_size)
 
         # Training
-        for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in train_batches:
+        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in train_batches:
             item_inputs = item_inputs.cuda()
-            KP_inputs = KP_inputs.cuda()
+            skill_inputs = skill_inputs.cuda()
             label_inputs = label_inputs.cuda()
             item_ids = item_ids.cuda()
-            KP_ids = KP_ids.cuda()
-            preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
+            skill_ids = skill_ids.cuda()
+            preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
 
             loss = compute_loss(preds, labels.cuda(), criterion)
             train_auc = compute_auc(torch.sigmoid(preds).detach().cpu(), labels)
@@ -126,14 +126,14 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
         # Validation
         model.eval()
-        for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in val_batches:
+        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in val_batches:
             with torch.no_grad():
                 item_inputs = item_inputs.cuda()
-                KP_inputs = KP_inputs.cuda()
+                skill_inputs = skill_inputs.cuda()
                 label_inputs = label_inputs.cuda()
                 item_ids = item_ids.cuda()
-                KP_ids = KP_ids.cuda()
-                preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
+                skill_ids = skill_ids.cuda()
+                preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
             val_auc = compute_auc(torch.sigmoid(preds).cpu(), labels)
             metrics.store({'auc/val': val_auc})
         model.train()
@@ -194,14 +194,14 @@ if __name__ == "__main__":
 
     # Predict on test set
     model.eval()
-    for item_inputs, KP_inputs, label_inputs, item_ids, KP_ids, labels in test_batches:
+    for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
         with torch.no_grad():
             item_inputs = item_inputs.cuda()
-            KP_inputs = KP_inputs.cuda()
+            skill_inputs = skill_inputs.cuda()
             label_inputs = label_inputs.cuda()
             item_ids = item_ids.cuda()
-            KP_ids = KP_ids.cuda()
-            preds = model(item_inputs, KP_inputs, label_inputs, item_ids, KP_ids)
+            skill_ids = skill_ids.cuda()
+            preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
             preds = torch.sigmoid(preds[labels >= 0]).cpu().numpy()
             test_preds = np.concatenate([test_preds, preds])
 
