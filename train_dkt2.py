@@ -177,7 +177,7 @@ if __name__ == "__main__":
     while True:
         try:
             # Train
-            param_str = f"{args.dataset},{args.seed},batch={args.batch_size},emb={args.embed_size},hid={args.hid_size}"
+            param_str = f"{args.dataset}"
             logger = Logger(os.path.join(args.logdir, param_str))
             saver = Saver(args.savedir, param_str)
             train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs, args.batch_size)
@@ -188,6 +188,7 @@ if __name__ == "__main__":
     
     logger.close()
 
+    model = saver.load()
     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
     test_batches = prepare_batches(test_data, args.batch_size, randomize=False)
     test_preds = np.empty(0)
@@ -206,7 +207,7 @@ if __name__ == "__main__":
             test_preds = np.concatenate([test_preds, preds])
 
     # Write predictions to csv
-    test_df["DKT"] = test_preds
+    test_df["DKT2"] = test_preds
     test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
 
     print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))

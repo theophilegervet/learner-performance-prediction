@@ -251,6 +251,7 @@ if __name__ == "__main__":
 
     logger.close()
 
+    model = saver.load()
     test_data, _ = get_data(test_df, args.item_in, args.skill_in, args.item_out,
                             args.skill_out, args.skill_separate, train_split=1.0,
                             randomize=False)
@@ -268,7 +269,7 @@ if __name__ == "__main__":
             test_preds = np.concatenate([test_preds, preds])
 
     # Write predictions to csv
-    test_df["DKT"] = test_preds
+    test_df["DKT1"] = test_preds
     test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
 
     print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
