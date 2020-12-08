@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.sparse import load_npz, csr_matrix
 import xgboost as xgb
 from sklearn.metrics import roc_auc_score, accuracy_score, log_loss, brier_score_loss
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 
 
 def compute_metrics(y_pred, y):
@@ -14,28 +14,40 @@ def compute_metrics(y_pred, y):
     mse = brier_score_loss(y, y_pred)
     return acc, auc, nll, mse
 
+def hyperParameterTuning(model, X_train, y_train):
+    param_tuning = {
+        'learning_rate': [0.01, 0.1],
+        'max_depth': [3, 5, 7, 10],
+        'min_child_weight': [1, 3, 5],
+        'subsample': [0.5, 0.7],
+        'colsample_bytree': [0.5, 0.7],
+        'n_estimators' : [100, 200, 500],
+        'objective': ['reg:squarederror']
+    }
+
+    gsearch = GridSearchCV(estimator = model,
+                           param_grid = param_tuning,                        
+                           #scoring = 'neg_mean_absolute_error', #MAE
+                           #scoring = 'neg_mean_squared_error',  #MSE
+                           cv = 5,
+                           n_jobs = -1,
+                           verbose = 1)
+
+    gsearch.fit(X_train, y_train)
+
+    return gsearch.best_params_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train logistic regression on sparse feature matrix.')
     parser.add_argument('--X_file', type=str)
     parser.add_argument('--dataset', type=str)
     parser.add_argument('--iter', type=int, default=1000)
+    parser.add_argument('--tune', type=int, default=0)
+
     args = parser.parse_args()
 
     features_suffix = (args.X_file.split("-")[-1]).split(".")[0]
 
-    param_grid = {
-        'max_depth':range(3,10,2),
-        'min_child_weight':range(1,6,2),
-        'subsample':[i/10.0 for i in range(6,10)],
-        'colsample_bytree':[i/10.0 for i in range(6,10)],
-        'gamma':[i/10.0 for i in range(0,5)],
-        'eta':[.3, .2, .1, .05, .01, .005],
-        'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
-    }
-    
-    model = xgb.XGBClassifier(n_jobs=1, verbose=1)
-    grid_search = GridSearchCV(estimator=model, param_grid=param_grid, verbose=2, cv=2, n_jobs=-1)
     # Load sparse dataset
     X = csr_matrix(load_npz(args.X_file))
 
@@ -54,12 +66,18 @@ if __name__ == "__main__":
     X_test, y_test = test[:, 5:], test[:, 3].toarray().flatten()
 
     # Train
-    # model = LogisticRegression(solver="lbfgs", max_iter=args.iter)
-    model = grid_search
-    model.fit(X_train, y_train)
+    xgb_model = xgb.XGBClassifier(
+        learning_rate = 0.01, 
+        n_estimators = 200,
+        verbose = 1,)
+    if args.tune == 1:
+        params = hyperParameterTuning(xgb_model, X_train, y_train)
+        xgb_model.set_params(params)
 
-    y_pred_train = model.predict_proba(X_train)[:, 1]
-    y_pred_test = model.predict_proba(X_test)[:, 1]
+    xgb_model.fit(X_train, y_train)
+
+    y_pred_train = xgb_model.predict_proba(X_train)[:, 1]
+    y_pred_test = xgb_model.predict_proba(X_test)[:, 1]
 
     # Write predictions to csv
     test_df[f"XG_{features_suffix}"] = y_pred_test
