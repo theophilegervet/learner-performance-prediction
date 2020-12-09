@@ -2,6 +2,8 @@ import os
 import argparse
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
 from scipy import sparse
 from collections import defaultdict
 from sklearn.preprocessing import OneHotEncoder
@@ -39,7 +41,7 @@ def df_to_sparse(df, Q_mat, active_features):
 
     # Transform q-matrix into dictionary for fast lookup
     Q_mat_dict = {i: set() for i in range(num_items)}
-    for i, j in np.argwhere(Q_mat == 1):
+    for i, j in tqdm(np.argwhere(Q_mat == 1)):
         Q_mat_dict[i].add(j)
 
     # Keep track of original dataset
@@ -50,7 +52,7 @@ def df_to_sparse(df, Q_mat, active_features):
         features["s"] = sparse.csr_matrix(np.empty((0, num_skills)))
 
     # Past attempts and wins features
-    for key in ['a', 'w']:
+    for key in tqdm(['a', 'w']):
         if key in active_features:
             if 'tw' in active_features:
                 features[key] = sparse.csr_matrix(np.empty((0, (num_skills + 2) * NUM_WINDOWS)))
@@ -58,7 +60,7 @@ def df_to_sparse(df, Q_mat, active_features):
                 features[key] = sparse.csr_matrix(np.empty((0, num_skills + 2)))
 
     # Build feature rows by iterating over users
-    for user_id in df["user_id"].unique():
+    for user_id in tqdm(df["user_id"].unique()):
         df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct", "skill_id"]].copy()
         df_user = df_user.values
         num_items_user = df_user.shape[0]

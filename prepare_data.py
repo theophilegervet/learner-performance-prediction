@@ -323,6 +323,77 @@ def prepare_spanish(train_split=0.8):
     df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
 
 
+def prepare_ednet(min_interactions_per_user, train_split=0.8):
+    """Preprocess Ednet dataset.
+
+    Arguments:
+        min_interactions_per_user(int) : to filter out minimum interactions per user 
+        train_split (float): proportion of data to use for training
+
+    Outputs:
+        df (pandas DataFrame): preprocessed Spanish dataset with user_id, item_id,
+            timestamp, correct and unique skill features
+        Q_mat (item-skill relationships sparse array): corresponding q-matrix
+    """
+    print("Ednet data load start...")
+    data_path = "data/ednet"
+    df = pd.read_csv(os.path.join(data_path, "ednet.csv"))
+    print("Ednet data load complete...")
+    print("----------------------------")
+
+    print("Applying changes to item and skills, re-indexing")
+    unique_skills = df.skill_id.unique()
+    skill_mapper = {}
+
+    for i, skill in enumerate(unique_skills):
+        skill_mapper[skill] = i
+    df['skill_id_2'] = df.skill_id.apply(lambda skill: skill_mapper[skill])
+
+    unique_items = df.item_id.unique()
+    item_mapper = {}
+
+    for i, item in enumerate(unique_items):
+        item_mapper[item] = i
+    df['item_id_2'] = df.item_id.apply(lambda item: item_mapper[item])
+
+    df = df[["user_id", "item_id_2", "timestamp", "correct", "skill_id_2"]]
+    df = df.rename({"item_id_2": "item_id", "skill_id_2": "skill_id"}, axis='columns')
+    print("Item and Skill mapping completed")
+    print("----------------------------")
+
+    # Build Q-matrix
+    print("building Q-matrix")
+    Q_mat = np.zeros((df["item_id"].nunique(), df["skill_id"].nunique()))
+    for item_id, skill_id in df[["item_id", "skill_id"]].values:
+        Q_mat[item_id, skill_id] = 1
+    print("Q-matrix built...")
+    print("----------------------------")
+
+    # Sort data by users, preserving temporal order for each user
+    df = pd.concat([u_df for _, u_df in df.groupby("user_id")])
+
+    # filter by min_interactions
+    df = df.groupby("user_id").filter(
+        lambda x: len(x) >= min_interactions_per_user
+        )
+
+    # Train-test split
+    users = df["user_id"].unique()
+    np.random.shuffle(users)
+    split = int(train_split * len(users))
+    train_df = df[df["user_id"].isin(users[:split])]
+    test_df = df[df["user_id"].isin(users[split:])]
+
+    print("Writing data to file")
+    # Save data
+    sparse.save_npz(os.path.join(data_path, "q_mat.npz"), sparse.csr_matrix(Q_mat))
+    train_df.to_csv(os.path.join(data_path, "preprocessed_data_train.csv"), sep="\t", index=False)
+    test_df.to_csv(os.path.join(data_path, "preprocessed_data_test.csv"), sep="\t", index=False)
+    df.to_csv(os.path.join(data_path, "preprocessed_data.csv"), sep="\t", index=False)
+    print("Writing complete")
+    print("----------------------------")
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Prepare datasets.')
     parser.add_argument('--dataset', type=str, default='assistments09')
@@ -352,3 +423,8 @@ if __name__ == "__main__":
             min_interactions_per_user=args.min_interactions)
     elif args.dataset == "spanish":
         prepare_spanish()
+    elif args.dataset == "ednet":
+        print("lets go ednet!")
+        prepare_ednet(
+            min_interactions_per_user=args.min_interactions,
+        )
