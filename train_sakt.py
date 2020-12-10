@@ -168,14 +168,14 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train SAKT.')
-    parser.add_argument('--dataset', type=str)
+    parser.add_argument('--dataset', type=str, default='assistments09')
     parser.add_argument('--logdir', type=str, default='runs/sakt')
     parser.add_argument('--savedir', type=str, default='save/sakt')
-    parser.add_argument('--max_length', type=int, default=200)
+    parser.add_argument('--max_length', type=int, default=35)
     parser.add_argument('--embed_size', type=int, default=200)
-    parser.add_argument('--num_attn_layers', type=int, default=1)
-    parser.add_argument('--num_heads', type=int, default=5)
-    parser.add_argument('--encode_pos', action='store_true')
+    parser.add_argument('--num_attn_layers', type=int, default=2)
+    parser.add_argument('--num_heads', type=int, default=10)
+    parser.add_argument('--encode_pos', action='store_true', default=False)
     parser.add_argument('--max_pos', type=int, default=10)
     parser.add_argument('--drop_prob', type=float, default=0.2)
     parser.add_argument('--batch_size', type=int, default=100)
@@ -222,6 +222,28 @@ if __name__ == "__main__":
     test_preds = np.empty(0)
 
     # Predict on test set
+    if 1:
+        model.eval()
+        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
+            item_inputs = item_inputs.cuda()
+            skill_inputs = skill_inputs.cuda()
+            label_inputs = label_inputs.cuda()
+            item_ids = item_ids.cuda()
+            skill_ids = skill_ids.cuda()
+            with torch.no_grad():
+                preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+                preds = torch.sigmoid(preds[labels >= 0]).flatten().cpu().numpy()
+                test_preds = np.concatenate([test_preds, preds])
+
+        # Write predictions to csv
+        test_df["SAKT"] = test_preds
+        test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
+
+        print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
+
+
+    test_preds = np.empty(0)
+    model = saver.load()
     model.eval()
     for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
         item_inputs = item_inputs.cuda()
@@ -235,7 +257,4 @@ if __name__ == "__main__":
             test_preds = np.concatenate([test_preds, preds])
 
     # Write predictions to csv
-    test_df["SAKT"] = test_preds
-    test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
-
-    print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
+    print("real auc_test = ", roc_auc_score(test_df["correct"], test_preds))

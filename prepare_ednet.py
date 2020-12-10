@@ -47,9 +47,17 @@ if __name__ == '__main__':
 
         del ednet_data
 
-    data_list = []
-    for row_ind_ in range(194):
-        partition_data = pd.read_csv('./data/ednet/preprocessed_data_split_{}.csv'.format(row_ind_))
-        data_list.append(partition_data)
-    
-    pd.concat(data_list, axis=0).to_csv('./data/ednet/preprocessed_data.csv')
+        data_list = []
+        for row_ind_ in range(194):
+            partition_data = pd.read_csv('./data/ednet/preprocessed_data_split_{}.csv'.format(row_ind_))
+            data_list.append(partition_data)
+        
+        pd.concat(data_list, axis=0).to_csv('./data/ednet/preprocessed_data.csv')
+
+
+    data_path = '/root/lpp/data/ednet/'
+    ednet_data = pd.read_csv(data_path + 'preprocessed_data.csv')\
+        [['user_id', 'item_id', 'timestamp', 'correct']].set_index(['user_id', 'timestamp'])
+    ind2type = {0: 'train', 1: 'valid', 2: 'test'}
+    for ind, type in ind2type.items():
+        ednet_data.loc[ednet_split[ind]].reset_index().to_csv(data_path + 'preprocessed_data_{}.csv'.format(type))

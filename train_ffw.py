@@ -120,6 +120,7 @@ if __name__ == "__main__":
     train_ffw(train, val, model, optimizer, logger, saver, args.num_epochs, args.batch_size)
     logger.close()
 
+    model = saver.load()
     model.eval()
     pred_test = np.zeros(len(test_df))
     for k in range(0, test.shape[0], args.batch_size):
