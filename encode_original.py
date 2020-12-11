@@ -1,26 +1,16 @@
-import warnings
-
-def fxn():
-    warnings.warn("deprecated", DeprecationWarning)
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    fxn()
-
-#import warnings
-#warnings.filterwarnings("ignore", category=DeprecationWarning)
-
 import os
 import argparse
 import numpy as np
 import pandas as pd
-import tqdm
-import time
+from tqdm import tqdm
+import time 
 
-from joblib import Parallel, delayed
 from scipy import sparse
 from collections import defaultdict
 from sklearn.preprocessing import OneHotEncoder
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from utils.queue import TimeWindowQueue
 
@@ -28,16 +18,19 @@ from utils.queue import TimeWindowQueue
 def phi(x):
     return np.log(1 + x)
 
+
 WINDOW_LENGTHS = [3600 * 24 * 30, 3600 * 24 * 7, 3600 * 24, 3600]
 NUM_WINDOWS = len(WINDOW_LENGTHS) + 1
 
 
 def df_to_sparse(df, Q_mat, active_features):
     """Build sparse dataset from dense dataset and q-matrix.
+
     Arguments:
         df (pandas DataFrame): output by prepare_data.py
         Q_mat (sparse array): q-matrix, output by prepare_data.py
         active_features (list of str): features
+
     Output:
         sparse_df (sparse array): sparse dataset where first 5 columns are the same as in df
     """
@@ -49,7 +42,7 @@ def df_to_sparse(df, Q_mat, active_features):
 
     # Transform q-matrix into dictionary for fast lookup
     Q_mat_dict = {i: set() for i in range(num_items)}
-    for i, j in np.argwhere(Q_mat == 1):
+    for i, j in tqdm(np.argwhere(Q_mat == 1)):
         Q_mat_dict[i].add(j)
 
     # Keep track of original dataset
@@ -60,36 +53,30 @@ def df_to_sparse(df, Q_mat, active_features):
         features["s"] = sparse.csr_matrix(np.empty((0, num_skills)))
 
     # Past attempts and wins features
-    for key in ['a', 'w']:
+    for key in tqdm(['a', 'w']):
         if key in active_features:
             if 'tw' in active_features:
                 features[key] = sparse.csr_matrix(np.empty((0, (num_skills + 2) * NUM_WINDOWS)))
             else:
                 features[key] = sparse.csr_matrix(np.empty((0, num_skills + 2)))
-    
-    user_list = df["user_id"].unique()
-    # Build feature rows by iterating over users
-    #for user_id in df["user_id"].unique():
 
-    def process_user(user_id) :
-        df_user = df[df['user_id'] == user_id][["user_id", "item_id", "timestamp", "correct", "skill_id"]].copy()
+    # Build feature rows by iterating over users
+    for user_id in tqdm(df["user_id"].unique()):
+        df_user = df[df["user_id"] == user_id][["user_id", "item_id", "timestamp", "correct", "skill_id"]].copy()
         df_user = df_user.values
         num_items_user = df_user.shape[0]
 
         skills = Q_mat[df_user[:, 1].astype(int)].copy()
-        output = {}
 
-        output['df'] = df_user
-        #features['df'] = np.vstack((features['df'], df_user))
+        features['df'] = np.vstack((features['df'], df_user))
 
         item_ids = df_user[:, 1].reshape(-1, 1)
         labels = df_user[:, 3].reshape(-1, 1)
-
-
+        
         # Current skills one hot encoding
         if 's' in active_features:
-            #features['s'] = sparse.vstack([features["s"], sparse.csr_matrix(skills)])
-            output['s'] = sparse.csr_matrix(skills)
+            features['s'] = sparse.vstack([features["s"], sparse.csr_matrix(skills)])
+
 
         # Attempts
         if 'a' in active_features:
@@ -128,9 +115,7 @@ def df_to_sparse(df, Q_mat, active_features):
 
                 # Past attempts for item
                 if 'ic' in active_features:
-                    # onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                    n = df_user[:, 1].max() + 1
-                    onehot = OneHotEncoder(categories=[range(n)])
+                    onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
                     item_ids_onehot = onehot.fit_transform(item_ids).toarray()
                     tmp = np.vstack((np.zeros(item_ids_onehot.shape[1]), np.cumsum(item_ids_onehot, 0)))[:-1]
                     attempts[:, -2] = phi(tmp[np.arange(num_items_user), df_user[:, 1]])
@@ -139,10 +124,8 @@ def df_to_sparse(df, Q_mat, active_features):
                 if 'tc' in active_features:
                     attempts[:, -1] = phi(np.arange(num_items_user))
 
-            if 'a' in active_features:
-                output['a'] = sparse.csr_matrix(attempts)
+            features['a'] = sparse.vstack([features['a'], sparse.csr_matrix(attempts)])
 
-            #features['a'] = sparse.vstack([features['a'], sparse.csr_matrix(attempts)])
 
         # Wins
         if "w" in active_features:
@@ -185,9 +168,7 @@ def df_to_sparse(df, Q_mat, active_features):
 
                 # Past wins for item
                 if 'ic' in active_features:
-                    # onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
-                    n = df_user[:, 1].max() + 1
-                    onehot = OneHotEncoder(categories=[range(n)])
+                    onehot = OneHotEncoder(n_values=df_user[:, 1].max() + 1)
                     item_ids_onehot = onehot.fit_transform(item_ids).toarray()
                     tmp = np.vstack((np.zeros(item_ids_onehot.shape[1]), np.cumsum(item_ids_onehot * labels, 0)))[:-1]
                     wins[:, -2] = phi(tmp[np.arange(num_items_user), df_user[:, 1]])
@@ -196,27 +177,7 @@ def df_to_sparse(df, Q_mat, active_features):
                 if 'tc' in active_features:
                     wins[:, -1] = phi(np.concatenate((np.zeros(1), np.cumsum(df_user[:, 3])[:-1])))
 
-            if 'w' in active_features:
-                output['w'] = sparse.csr_matrix(wins)
-
-            #features['w'] = sparse.vstack([features['w'], sparse.csr_matrix(wins)])
-        
-        return output
-
-    start_time = time.time()
-    process_output = Parallel(n_jobs=-1, verbose=3)(map(delayed(process_user), user_list))
-    end_time = time.time()
-    print("time taken for parallel process %f" %(end_time - start_time))
-
-    start_time = time.time()
-    for single_output in process_output :
-        for key in single_output.keys() : 
-            if key == "df" :
-                features[key] = np.vstack((features['df'], single_output[key]))
-            else :
-                features[key] = sparse.vstack([features[key], single_output[key]])
-    end_time = time.time()
-    print("time taken for output post-process %f" %(end_time - start_time))
+            features['w'] = sparse.vstack([features['w'], sparse.csr_matrix(wins)])
 
     # User and item one hot encodings
     onehot = OneHotEncoder()
