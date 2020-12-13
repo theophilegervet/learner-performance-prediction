@@ -5,94 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-def future_mask(seq_length):
-    future_mask = np.triu(np.ones((1, seq_length, seq_length)), k=1).astype('bool')
-    return torch.from_numpy(future_mask)
-
-
-def clone(module, num):
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(num)])
-
-
-def attention(query, key, value, mask=None, dropout=None):
-    """Compute scaled dot product attention.
-    """
-    scores = torch.matmul(query, key.transpose(-2, -1))
-    scores = scores / math.sqrt(query.size(-1))
-    if mask is not None:
-        scores = scores.masked_fill(mask, -1e9)
-    prob_attn = F.softmax(scores, dim=-1)
-    if dropout is not None:
-        prob_attn = dropout(prob_attn)
-    return torch.matmul(prob_attn, value), prob_attn
-
-
-def relative_attention(query, key, value, pos_key_embeds, pos_value_embeds, mask=None, dropout=None):
-    """Compute scaled dot product attention with relative position embeddings.
-    (https://arxiv.org/pdf/1803.02155.pdf)
-    """
-    assert pos_key_embeds.num_embeddings == pos_value_embeds.num_embeddings
-
-    scores = torch.matmul(query, key.transpose(-2, -1))
-
-    idxs = torch.arange(scores.size(-1))
-    if query.is_cuda:
-        idxs = idxs.cuda()
-    idxs = idxs.view(-1, 1) - idxs.view(1, -1)
-    idxs = torch.clamp(idxs, 0, pos_key_embeds.num_embeddings - 1)
-
-    pos_key = pos_key_embeds(idxs).transpose(-2, -1)
-    pos_scores = torch.matmul(query.unsqueeze(-2), pos_key)
-    scores = scores.unsqueeze(-2) + pos_scores
-    scores = scores / math.sqrt(query.size(-1))
-
-    pos_value = pos_value_embeds(idxs)
-    value = value.unsqueeze(-3) + pos_value
-
-    if mask is not None:
-        scores = scores.masked_fill(mask.unsqueeze(-2), -1e9)
-    prob_attn = F.softmax(scores, dim=-1)
-    if dropout is not None:
-        prob_attn = dropout(prob_attn)
-
-    output = torch.matmul(prob_attn, value).unsqueeze(-2)
-    prob_attn = prob_attn.unsqueeze(-2)
-    return output, prob_attn
-
-
-class MultiHeadedAttention(nn.Module):
-    def __init__(self, total_size, num_heads, drop_prob):
-        super(MultiHeadedAttention, self).__init__()
-        assert total_size % num_heads == 0
-        self.total_size = total_size
-        self.head_size = total_size // num_heads
-        self.num_heads = num_heads
-        self.linear_layers = clone(nn.Linear(total_size, total_size), 3)
-        self.dropout = nn.Dropout(p=drop_prob)
-
-    def forward(self, query, key, value, encode_pos, pos_key_embeds, pos_value_embeds, mask=None):
-        batch_size, seq_length = query.shape[:2]
-
-        # Apply mask to all heads
-        if mask is not None:
-            mask = mask.unsqueeze(1)
-
-        # Project inputs
-        query, key, value = [l(x).view(batch_size, seq_length, self.num_heads, self.head_size).transpose(1, 2)
-                             for l, x in zip(self.linear_layers, (query, key, value))]
-
-        # Apply attention
-        if encode_pos:
-            out, self.prob_attn = relative_attention(
-                query, key, value, pos_key_embeds, pos_value_embeds, mask, self.dropout)
-        else:
-            out, self.prob_attn = attention(query, key, value, mask, self.dropout)
-
-        out = out.transpose(1, 2).contiguous().view(batch_size, seq_length, self.total_size)
-        return out
-
+from model_sakt import future_mask, clone, attention, relative_attention, MultiHeadedAttention
 
 class SAKT(nn.Module):
     def __init__(self, num_items, num_skills, embed_size, num_attn_layers, num_heads,
@@ -113,36 +26,51 @@ class SAKT(nn.Module):
         self.embed_size = embed_size
         self.encode_pos = encode_pos
 
-        self.item_embeds = nn.Embedding(num_items + 1, embed_size // 2, padding_idx=0)
-        self.skill_embeds = nn.Embedding(num_skills + 1, embed_size // 2, padding_idx=0)
+        if 1: 
+            self.item_embeds = nn.Embedding(num_items + 1, embed_size // 2, padding_idx=0)
+            self.skill_embeds = nn.Embedding(num_skills + 1, embed_size // 2, padding_idx=0)
+        else:
+            self.item_embeds = nn.Embedding(num_items + 1, embed_size, padding_idx=0)
+            self.skill_embeds = nn.Embedding(num_skills + 1, embed_size, padding_idx=0)
 
         self.pos_key_embeds = nn.Embedding(max_pos, embed_size // num_heads)
         self.pos_value_embeds = nn.Embedding(max_pos, embed_size // num_heads)
 
         self.lin_in = nn.Linear(2 * embed_size, embed_size)
         self.attn_layers = clone(MultiHeadedAttention(embed_size, num_heads, drop_prob), num_attn_layers)
-        self.dropout = nn.Dropout(p=drop_prob)
+        self.layer_norms = clone(nn.LayerNorm(embed_size), num_attn_layers)
+        self.dropouts = clone(nn.Dropout(p=drop_prob), num_attn_layers)
         self.lin_out = nn.Linear(embed_size, 1)
+        # self.lin_out = nn.Linear(embed_size, num_skills)
         
     def get_inputs(self, item_inputs, skill_inputs, label_inputs):
-        item_inputs = self.item_embeds(item_inputs)
+        if 1:
+            item_inputs = self.item_embeds(item_inputs)
         skill_inputs = self.skill_embeds(skill_inputs)
         label_inputs = label_inputs.unsqueeze(-1).float()
 
-        inputs = torch.cat([item_inputs, skill_inputs, item_inputs, skill_inputs], dim=-1)
+        if 1:
+            inputs = torch.cat([item_inputs, skill_inputs, item_inputs, skill_inputs], dim=-1)
+        else:
+            inputs = torch.cat([skill_inputs, skill_inputs], dim=-1)
         inputs[..., :self.embed_size] *= label_inputs
         inputs[..., self.embed_size:] *= 1 - label_inputs
-        return inputs
+        return inputs # Interaction: For Key and Value
 
     def get_query(self, item_ids, skill_ids):
-        item_ids = self.item_embeds(item_ids)
-        skill_ids = self.skill_embeds(skill_ids)
-        query = torch.cat([item_ids, skill_ids], dim=-1)
-        return query
+        if 1:
+            item_ids = self.item_embeds(item_ids)
+            skill_ids = self.skill_embeds(skill_ids)
+            query = torch.cat([item_ids, skill_ids], dim=-1)
+            return query
+        else:
+            skill_ids = self.skill_embeds(skill_ids)
+            return skill_ids # Exercise: For Query
 
     def forward(self, item_inputs, skill_inputs, label_inputs, item_ids, skill_ids):
         inputs = self.get_inputs(item_inputs, skill_inputs, label_inputs)
-        inputs = F.relu(self.lin_in(inputs))
+        inputs = self.lin_in(inputs)
+        # inputs = F.relu(self.lin_in(inputs))
 
         query = self.get_query(item_ids, skill_ids)
 
@@ -150,11 +78,19 @@ class SAKT(nn.Module):
         if inputs.is_cuda:
             mask = mask.cuda()
 
-        outputs = self.dropout(self.attn_layers[0](query, inputs, inputs, self.encode_pos,
-                                                   self.pos_key_embeds, self.pos_value_embeds, mask))
-        for l in self.attn_layers[1:]:
-            residual = l(query, outputs, outputs, self.encode_pos, self.pos_key_embeds,
+        # outputs = self.layer_norms[0](
+        #     self.dropouts[0](
+        #         self.attn_layers[0](
+        #             query, inputs, inputs, self.encode_pos,
+        #             self.pos_key_embeds, self.pos_value_embeds, mask)))
+        
+        outputs = self.dropouts[0](self.attn_layers[0](
+            query, inputs, inputs, self.encode_pos,
+                    self.pos_key_embeds, self.pos_value_embeds, mask))
+
+        for i, l in enumerate(self.attn_layers[1:]):
+            residual = l(outputs, outputs, outputs, self.encode_pos, self.pos_key_embeds,
                          self.pos_value_embeds, mask)
-            outputs = self.dropout(outputs + F.relu(residual))
+            outputs = self.dropouts[i+1](outputs + F.relu(residual))
 
         return self.lin_out(outputs)

@@ -6,7 +6,7 @@ import numpy as np
 class Saver:
     """Saving pytorch model.
     """
-    def __init__(self, savedir, filename, patience=5):
+    def __init__(self, savedir, filename, patience=10):
         """
         Arguments:
             savedir (str): Save directory.

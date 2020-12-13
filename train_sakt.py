@@ -8,11 +8,11 @@ from torch.optim import Adam
 from torch.nn.utils import clip_grad_norm_
 from torch.nn.utils.rnn import pad_sequence
 
-from model_sakt import SAKT
+from model_sakt2 import SAKT
 from utils import *
 
 
-def get_data(df, max_length, train_split=0.8, randomize=True):
+def get_data(df, max_length, train_split=0.8, randomize=False):
     """Extract sequences from dataframe.
 
     Arguments:
@@ -167,94 +167,82 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train SAKT.')
-    parser.add_argument('--dataset', type=str, default='assistments09')
-    parser.add_argument('--logdir', type=str, default='runs/sakt')
-    parser.add_argument('--savedir', type=str, default='save/sakt')
-    parser.add_argument('--max_length', type=int, default=35)
-    parser.add_argument('--embed_size', type=int, default=200)
-    parser.add_argument('--num_attn_layers', type=int, default=2)
-    parser.add_argument('--num_heads', type=int, default=10)
-    parser.add_argument('--encode_pos', action='store_true', default=False)
-    parser.add_argument('--max_pos', type=int, default=10)
-    parser.add_argument('--drop_prob', type=float, default=0.2)
-    parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--grad_clip', type=float, default=10)
-    parser.add_argument('--num_epochs', type=int, default=300)
-    args = parser.parse_args()
-
-    full_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
-    train_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
-    test_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_test.csv'), sep="\t")
-
-    train_data, val_data = get_data(train_df, args.max_length)
-
-    num_items = int(full_df["item_id"].max() + 1)
-    num_skills = int(full_df["skill_id"].max() + 1)
-
-    model = SAKT(num_items, num_skills, args.embed_size, args.num_attn_layers, args.num_heads,
-                  args.encode_pos, args.max_pos, args.drop_prob).cuda()
-    optimizer = Adam(model.parameters(), lr=args.lr)
-
-    # Reduce batch size until it fits on GPU
-    while True:
-        try:
-            # Train
-            param_str = (f'{args.dataset},'
-                         f'batch_size={args.batch_size},'
-                         f'max_length={args.max_length},'
-                         f'encode_pos={args.encode_pos},'
-                         f'max_pos={args.max_pos}')
-            logger = Logger(os.path.join(args.logdir, param_str))
-            saver = Saver(args.savedir, param_str)
-            train(train_data, val_data, model, optimizer, logger, saver, args.num_epochs,
-                  args.batch_size, args.grad_clip)
-            break
-        except RuntimeError:
-            args.batch_size = args.batch_size // 2
-            print(f'Batch does not fit on gpu, reducing size to {args.batch_size}')
-
-    logger.close()
-
-    test_data, _ = get_data(test_df, args.max_length, train_split=1.0, randomize=False)
-    test_batches = prepare_batches(test_data, args.batch_size, randomize=False)
-    test_preds = np.empty(0)
-
-    # Predict on test set
     if 1:
-        model.eval()
-        for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
-            item_inputs = item_inputs.cuda()
-            skill_inputs = skill_inputs.cuda()
-            label_inputs = label_inputs.cuda()
-            item_ids = item_ids.cuda()
-            skill_ids = skill_ids.cuda()
-            with torch.no_grad():
-                preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
-                preds = torch.sigmoid(preds[labels >= 0]).flatten().cpu().numpy()
-                test_preds = np.concatenate([test_preds, preds])
+        parser = argparse.ArgumentParser(description='Train SAKT.')
+        parser.add_argument('--setup', type=str, default='assistments15')
+        args_ = parser.parse_args()
 
-        # Write predictions to csv
-        test_df["SAKT"] = test_preds
-        test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
+    setup_path = './sakt_loop_{}.xlsx'.format(args_.setup)
+    setup_page = pd.read_excel(setup_path).ffill()
+    # result_page_path = './sakt_result.csv'
+    # if not os.path.exists(result_page_path):
+    #     result_page = setup_page.copy()
+    # else:
+    #     result_page = pd.read_csv(result_page_path)
+    
+    for setup_index in setup_page.index:
+        args = setup_page.loc[setup_index]
+        setup_page.loc[setup_index, 'logdir'] = 'runs/sakt'
+        setup_page.loc[setup_index, 'savedir'] = 'save/sakt'
+        args = setup_page.loc[setup_index]
 
-        print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
+        stop_experiment = False # Stop current setup for whatever reason possible.
+        if args.exp_status == 'DONE':
+            continue
+        for rand_seed in range(int(args['repeat'])):
+            set_random_seeds(rand_seed)
+            full_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data.csv'), sep="\t")
+            train_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_train.csv'), sep="\t")
+            test_df = pd.read_csv(os.path.join('data', args.dataset, 'preprocessed_data_test.csv'), sep="\t")
+            train_data, val_data = get_data(train_df, int(args.max_length), randomize=True)
+            num_items = int(full_df["item_id"].max() + 1)
+            num_skills = int(full_df["skill_id"].max() + 1)
+            model = SAKT(num_items, num_skills, int(args.embed_size), int(args.num_attn_layers), int(args.num_heads),
+                        bool(args.encode_pos), int(args.max_pos), args.drop_prob).cuda()
+            optimizer = Adam(model.parameters(), lr=args.lr)
 
+            while True: # Reduce batch size until it fits on GPU
+                try:
+                    # Train
+                    param_str = (f'{args.dataset},'
+                                f'batch_size={args.batch_size},'
+                                f'max_length={args.max_length},'
+                                f'encode_pos={args.encode_pos},'
+                                f'max_pos={args.max_pos}')
+                    logger = Logger(os.path.join(args.logdir, param_str))
+                    saver = Saver(args.savedir, param_str)
+                    train(train_data, val_data, model, optimizer, logger, saver, int(args.num_epochs),
+                        int(args.batch_size), args.grad_clip)
+                    break
+                except RuntimeError:
+                    args.batch_size = args.batch_size // 2
+                    print(f'Batch does not fit on gpu, reducing size to {args.batch_size}')
+                    if args.batch_size < 25:
+                        stop_experiment = True
+                        break
+            if stop_experiment:
+                print('GPU too small to create meaningfully large mini-batch.')
+                args.loc['exp_status'] = 'GPU Error'
+                break
+        
+            logger.close()
+            test_data, _ = get_data(test_df, int(args.max_length), train_split=1.0, randomize=False)
+            test_batches = prepare_batches(test_data, int(args.batch_size), randomize=False)
+            test_preds = np.empty(0)
+            model = saver.load()
+            model.eval()
+            for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
+                item_inputs = item_inputs.cuda()
+                skill_inputs = skill_inputs.cuda()
+                label_inputs = label_inputs.cuda()
+                item_ids = item_ids.cuda()
+                skill_ids = skill_ids.cuda()
+                with torch.no_grad():
+                    preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+                    preds = torch.sigmoid(preds[labels >= 0]).flatten().cpu().numpy()
+                    test_preds = np.concatenate([test_preds, preds])
 
-    test_preds = np.empty(0)
-    model = saver.load()
-    model.eval()
-    for item_inputs, skill_inputs, label_inputs, item_ids, skill_ids, labels in test_batches:
-        item_inputs = item_inputs.cuda()
-        skill_inputs = skill_inputs.cuda()
-        label_inputs = label_inputs.cuda()
-        item_ids = item_ids.cuda()
-        skill_ids = skill_ids.cuda()
-        with torch.no_grad():
-            preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
-            preds = torch.sigmoid(preds[labels >= 0]).flatten().cpu().numpy()
-            test_preds = np.concatenate([test_preds, preds])
+            setup_page.loc[setup_index, 'result{}'.format(rand_seed + 1)] = \
+                roc_auc_score(test_df['correct'], test_preds)
+            setup_page.to_excel(setup_path)
 
-    # Write predictions to csv
-    print("real auc_test = ", roc_auc_score(test_df["correct"], test_preds))

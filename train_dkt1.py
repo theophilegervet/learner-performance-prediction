@@ -192,19 +192,20 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DKT1.')
-    parser.add_argument('--dataset', type=str)
+    parser.add_argument('--dataset', type=str, default='assistments17')
     parser.add_argument('--logdir', type=str, default='runs/dkt1')
     parser.add_argument('--savedir', type=str, default='save/dkt1')
     parser.add_argument('--item_in', action='store_true',
-                        help='If True, use items as inputs.')
+                        help='If True, use items as inputs.', default=False)
     parser.add_argument('--skill_in', action='store_true',
-                        help='If True, use skills as inputs.')
+                        help='If True, use skills as inputs.', default=True)
     parser.add_argument('--item_out', action='store_true',
-                        help='If True, use items as outputs.')
+                        help='If True, use items as outputs.', default=True)
     parser.add_argument('--skill_out', action='store_true',
-                        help='If True, use skills as outputs.')
+                        help='If True, use skills as outputs.', default=False)
     parser.add_argument('--skill_separate', action='store_true',
-                        help='If True, train a separate model for every skill.')
+                        help='If True, train a separate model for every skill.',
+                        default=False)
     parser.add_argument('--hid_size', type=int, default=200)
     parser.add_argument('--num_hid_layers', type=int, default=1)
     parser.add_argument('--drop_prob', type=float, default=0.5)
