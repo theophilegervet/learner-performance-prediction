@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.nn.utils.rnn import pad_sequence
 
-from model_dkt2 import DKT2
+from models.model_dkt2 import DKT2
 from utils import *
 
 

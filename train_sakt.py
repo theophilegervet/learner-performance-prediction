@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.nn.utils import clip_grad_norm_
 from torch.nn.utils.rnn import pad_sequence
 
-from model_sakt2 import SAKT
+from models.model_sakt2 import SAKT
 from utils import *
 
 
@@ -172,11 +172,6 @@ def train(train_data, val_data, model, optimizer, logger, saver, num_epochs, bat
             # Logging
             if step % 20 == 0:
                 logger.log_scalars(metrics.average(), step)
-                # weights = {"weight/" + name: param for name, param in model.named_parameters()}
-                # grads = {"grad/" + name: param.grad
-                #         for name, param in model.named_parameters() if param.grad is not None}
-                # logger.log_histograms(weights, step)
-                # logger.log_histograms(grads, step)
 
         # Validation
         model.eval()

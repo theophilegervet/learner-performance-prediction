@@ -6,7 +6,7 @@ from sklearn.metrics import roc_auc_score
 import torch.nn as nn
 from torch.optim import Adam
 
-from model_ffw import FeedForward
+from models.model_ffw import FeedForward
 from utils import *
 
 
