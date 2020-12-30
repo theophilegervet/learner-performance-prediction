@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model_sakt import future_mask, clone, attention, relative_attention, MultiHeadedAttention
+from models.model_sakt import future_mask, clone, attention, relative_attention, MultiHeadedAttention
 
 class SAKT(nn.Module):
     def __init__(self, num_items, num_skills, embed_size, num_attn_layers, num_heads,
