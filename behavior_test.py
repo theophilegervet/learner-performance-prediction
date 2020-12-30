@@ -1,29 +1,29 @@
-def generate_test_case(orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args):
+import argparse
+import pandas as pd
+
+from testcase_template import *
+
+
+def test_flip_decrease():
     """
-    Generates a test case with given input and output.
-
-    Arguments:
-        orig_input, orig_output : original input sequence and model output
-        perturb_func : perturbation function (ex. replace, add, ...)
-        pass_condition : desired range of new output as a tuple (min, max)
-        pf_args, pc_args : additional arguments for perturb_func and pass_condition
+    Randomly flip response to correct -> incorrect.
+    Expected behavior: latest probability should not increase
     """
-    return perturb_func(orig_input, *pf_args), pass_condition(orig_output, *pc_args)
+    pass
 
 
-def pass_invariant(orig_output, epsilon=0.1):
-    return orig_output - epsilon, orig_output + epsilon
+def test_flip_increase():
+    """
+    Randomly flip response to incorrect -> correct.
+    Expected behavior: latest probability should not decrease
+    """
+    pass
 
 
-def pass_increase(orig_output, maximum_output=1):
-    return orig_output, maximum_output
-
-
-def pass_decrease(orig_output, minimum_output=0):
-    return minimum_output, orig_output
-
-
-def perturb_flip(orig_input, replace_index):
-    item_inputs, skill_inputs, label_inputs, item_ids, skill_ids = orig_input
-    label_inputs[replace_index] = 1 - label_inputs[replace_index]
-    return item_inputs, skill_inputs, label_inputs, item_ids, skill_ids
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Behavioral Testing')
+    parser.add_argument('--dataset', type=str)
+    parser.add_argument('--model', type=str, choices=['lr', 'dkt', 'sakt'])
+    parser.add_argument('--test_type', nargs='+', default=[])
+    args = parser.parse_args()
+    pass
