@@ -82,16 +82,6 @@ To train a SAKT model:
 python train_sakt.py --dataset <dataset codename>
 ```
 
-## Behavioral Testing of models
-
-Sample behavioral test is in `behavior_test.py`. To test a model:
-
-```
-python behavior_test.py --dataset <dataset codename> --load_dir <load_directory> --filename <filename>
-```
-
-This sample code examines first 30 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
-
 ## Results (AUC)
 
 | Algorithm      | assist09      | assist12 | assist15      | assist17 | bridge06 | algebra05 | spanish  | statics  |
@@ -102,3 +92,21 @@ This sample code examines first 30 test data. For each input data, we change all
 | Best-LR        | **0.77**      | 0.75     | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** | 0.82     |
 | DKT            | 0.75          | **0.77** | **0.73**      | **0.77** | 0.79     | 0.82      | 0.83     | **0.83** |
 | SAKT           | 0.75          | 0.73     | **0.73**      | 0.72     | 0.78     | 0.80      | 0.83     | 0.81     |
+
+## Behavioral Testing of models
+
+Sample behavioral test is in `behavior_test.py`. To test a model:
+
+```
+python behavior_test.py --dataset <dataset codename> --load_dir <load_directory> --filename <filename>
+```
+
+This sample code examines first 30 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
+
+### Results
+
+| Algorithm      | assist09     | assist12     | assist15     | assist17     | bridge06     | algebra05    | spanish      | statics      | ednet_small  |
+| -------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
+| Best-LR        |              |              |              |              |              |              |              |              |              |
+| DKT            | 10.3% / 0.6% | 1.3% / 0.1%  | 4.0% / 0.2%  | 5.3% / 35.1% | 5.8% / 4.0%  | 2.6% / 0.9%  | 2.7% / 0.0%  | 5.3% / 0.0%  | 0.2% / 0.1%  |
+| SAKT           |              |              |              |              |              |              |              |              |              |

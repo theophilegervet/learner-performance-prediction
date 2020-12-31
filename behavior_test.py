@@ -75,8 +75,9 @@ if __name__ == "__main__":
 
     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
 
-    test_result = torch.Tensor(test_flip_all(model, test_data[:30]))
+    test_result = torch.Tensor(test_flip_all(model, test_data[:1000]))
 
-    print(test_result)
-    print("All-true perturbation result:", test_result[:, 2].mean().item())
-    print("All-false perturbation result:", test_result[:, 4].mean().item())
+    # print(test_result)
+    print(test_result.size())
+    print("All-true perturbation result:", test_result[:, 2].sum().item())
+    print("All-false perturbation result:", test_result[:, 4].sum().item())
