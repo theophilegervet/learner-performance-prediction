@@ -51,8 +51,8 @@ python prepare_data.py --dataset <dataset codename> --remove_nan_skills
 #### Logistic Regression
 
 To encode a sparse feature matrix with specified features:
-- Item Response Theory (IRT): `-i` 
-- PFA: `-s -sc -w -a` 
+- Item Response Theory (IRT): `-i`
+- PFA: `-s -sc -w -a`
 - DAS3H: `-i -s -sc -w -a -tw`
 - Best logistic regression features (Best-LR): `-i -s -ic -sc -tc -w -a`
 
@@ -71,7 +71,7 @@ python train_lr.py --X_file data/<dataset codename>/X-<feature suffix>.npz --dat
 To train a DKT model:
 
 ```
-python train_dkt2.py --dataset <dataset codename> 
+python train_dkt2.py --dataset <dataset codename>
 ```
 
 #### Self-Attentive Knowledge Tracing
@@ -82,11 +82,21 @@ To train a SAKT model:
 python train_sakt.py --dataset <dataset codename>
 ```
 
+## Behavioral Testing of models
+
+Sample behavioral test is in `behavior_test.py`. To test a model:
+
+```
+python behavior_test.py --dataset <dataset codename> --load_dir <load_directory> --filename <filename>
+```
+
+This sample code examines first 30 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
+
 ## Results (AUC)
 
 | Algorithm      | assist09      | assist12 | assist15      | assist17 | bridge06 | algebra05 | spanish  | statics  |
 | -------------- | ------------- | -------- | ------------- | -------- | -------- | --------- | -------- | -------- |
-| IRT            | 0.69          | 0.71     | 0.64          | 0.68     | 0.75     | 0.77      | 0.68     | 0.79     |       
+| IRT            | 0.69          | 0.71     | 0.64          | 0.68     | 0.75     | 0.77      | 0.68     | 0.79     |
 | PFA            | 0.72          | 0.67     | 0.69          | 0.62     | 0.77     | 0.76      | 0.85     | 0.69     |
 | DAS3H          | -             | 0.74     | -             | 0.69     | 0.79     | **0.83**  | -        | -        |
 | Best-LR        | **0.77**      | 0.75     | 0.70          | 0.71     | **0.80** | **0.83**  | **0.86** | 0.82     |
