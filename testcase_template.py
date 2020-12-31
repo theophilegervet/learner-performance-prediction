@@ -1,4 +1,4 @@
-def generate_test_case(orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args):
+def generate_test_case(orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args=()):
     """
     Generates a test case with given input and output.
 
@@ -21,6 +21,10 @@ def pass_increase(orig_output, maximum_output=1):
 
 def pass_decrease(orig_output, minimum_output=0):
     return minimum_output, orig_output
+
+
+def float_in_range(output, pass_range):
+    return pass_range[0] <= output <= pass_range[1]
 
 
 def perturb_flip(orig_input, replace_index):
