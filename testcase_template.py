@@ -1,6 +1,9 @@
 import torch
 
-def generate_test_case(orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args=()):
+
+def generate_test_case(
+    orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args=()
+):
     """
     Generates a test case with given input and output.
 
@@ -39,4 +42,3 @@ def perturb_flip_all(orig_input, replace_value):
     item_inputs, skill_inputs, label_inputs, item_ids, skill_ids = orig_input
     label_inputs = torch.ones(label_inputs.size()) * replace_value
     return item_inputs, skill_inputs, label_inputs, item_ids, skill_ids
-
