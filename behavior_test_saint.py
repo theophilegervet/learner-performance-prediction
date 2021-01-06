@@ -152,4 +152,5 @@ if __name__ == "__main__":
             true_cnt += 1
         if result[i].item() >= result_false[i].item():
             false_cnt += 1
-    print(num_inter, true_cnt, false_cnt)
+    with open(os.path.join(args.load_dir, "result.txt"), "w") as f:
+        f.write(num_inter, true_cnt, false_cnt)

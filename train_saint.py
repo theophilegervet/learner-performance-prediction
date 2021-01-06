@@ -486,7 +486,6 @@ if __name__ == "__main__":
         gpus=args.gpu,
         callbacks=[checkpoint_callback],
         max_steps=args.num_steps,
-        val_check_interval=args.val_check_steps,
     )
     # initialize wandb
     if args.use_wandb:

@@ -3,7 +3,7 @@ datasets=("assistments09" "assistments12" "assistments15" "assistments17" "bridg
 for i in "${indices[@]}"
 do
     command1="python train_dkt2.py --dataset ${datasets[i]}"
-    command2="python behavior_test.py --model dkt --loaddir save/dkt --filename ${datasets[i]} --dataset ${datasets[i]}"
+    command2="python behavior_test.py --model dkt --load_dir save/dkt --filename ${datasets[i]} --dataset ${datasets[i]}"
     echo $command1
     eval $command1
     echo $command2
