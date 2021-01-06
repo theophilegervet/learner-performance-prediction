@@ -1,6 +1,7 @@
 class Metrics:
     """Keep track of metrics over time in a dictionary.
     """
+
     def __init__(self):
         self.metrics = {}
         self.counts = {}

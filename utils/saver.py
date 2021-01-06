@@ -6,6 +6,7 @@ import numpy as np
 class Saver:
     """Saving pytorch model.
     """
+
     def __init__(self, savedir, filename, patience=10):
         """
         Arguments:
@@ -34,7 +35,7 @@ class Saver:
             torch.save(network, self.path)
             self.counter = 0
 
-        stop = (self.counter >= self.patience)
+        stop = self.counter >= self.patience
         return stop
 
     def load(self):

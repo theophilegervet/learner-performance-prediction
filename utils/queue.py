@@ -5,6 +5,7 @@ class TimeWindowQueue:
 
     From JJ's KTM repository: https://github.com/jilljenn/ktm.
     """
+
     def __init__(self, window_lengths):
         self.queue = []
         self.window_lengths = window_lengths
@@ -22,6 +23,8 @@ class TimeWindowQueue:
 
     def update_cursors(self, t):
         for pos, length in enumerate(self.window_lengths):
-            while (self.cursors[pos] < len(self.queue) and
-                   t - self.queue[self.cursors[pos]] >= length):
+            while (
+                self.cursors[pos] < len(self.queue)
+                and t - self.queue[self.cursors[pos]] >= length
+            ):
                 self.cursors[pos] += 1

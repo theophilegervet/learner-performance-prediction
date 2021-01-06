@@ -5,6 +5,7 @@ from tensorboardX import SummaryWriter
 
 class Logger:
     """Logging with TensorboardX. """
+
     def __init__(self, logdir, verbose=True):
         if not os.path.exists(logdir):
             os.makedirs(logdir)

@@ -107,6 +107,6 @@ This sample code examines first 30 test data. For each input data, we change all
 
 | Algorithm      | assist09     | assist12     | assist15     | assist17     | bridge06     | algebra05    | spanish      | statics      | ednet_small  |
 | -------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
-| Best-LR        |              |              |              |              |              |              |              |              |              |
+| Best-LR        |              |              |              |              |              |              |              |              | 6.0% / 4.2%  |
 | DKT            | 10.3% / 0.6% | 1.3% / 0.1%  | 4.0% / 0.2%  | 5.3% / 35.1% | 5.8% / 4.0%  | 2.6% / 0.9%  | 2.7% / 0.0%  | 5.3% / 0.0%  | 0.2% / 0.1%  |
-| SAKT           |              |              |              |              |              |              |              |              |              |
+| SAINT          |              |              |              |              |              |              |              |              |              |

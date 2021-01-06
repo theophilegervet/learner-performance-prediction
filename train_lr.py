@@ -15,10 +15,12 @@ def compute_metrics(y_pred, y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train logistic regression on sparse feature matrix.')
-    parser.add_argument('--X_file', type=str)
-    parser.add_argument('--dataset', type=str)
-    parser.add_argument('--iter', type=int, default=1000)
+    parser = argparse.ArgumentParser(
+        description="Train logistic regression on sparse feature matrix."
+    )
+    parser.add_argument("--X_file", type=str)
+    parser.add_argument("--dataset", type=str)
+    parser.add_argument("--iter", type=int, default=1000)
     args = parser.parse_args()
 
     features_suffix = (args.X_file.split("-")[-1]).split(".")[0]
@@ -26,9 +28,9 @@ if __name__ == "__main__":
     # Load sparse dataset
     X = csr_matrix(load_npz(args.X_file))
 
-    train_df = pd.read_csv(f'data/{args.dataset}/preprocessed_data_train.csv', sep="\t")
-    test_df = pd.read_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t")
-    
+    train_df = pd.read_csv(f"data/{args.dataset}/preprocessed_data_train.csv", sep="\t")
+    test_df = pd.read_csv(f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t")
+
     # Student-wise train-test split
     user_ids = X[:, 0].toarray().flatten()
     users_train = train_df["user_id"].unique()
@@ -49,10 +51,14 @@ if __name__ == "__main__":
 
     # Write predictions to csv
     test_df[f"LR_{features_suffix}"] = y_pred_test
-    test_df.to_csv(f'data/{args.dataset}/preprocessed_data_test.csv', sep="\t", index=False)
+    test_df.to_csv(
+        f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
+    )
 
     acc_train, auc_train, nll_train, mse_train = compute_metrics(y_pred_train, y_train)
     acc_test, auc_test, nll_test, mse_test = compute_metrics(y_pred_test, y_test)
-    print(f"{args.dataset}, features = {features_suffix}, "
-          f"auc_train = {auc_train}, auc_test = {auc_test}, "
-          f"mse_train = {mse_train}, mse_test = {mse_test}")
+    print(
+        f"{args.dataset}, features = {features_suffix}, "
+        f"auc_train = {auc_train}, auc_test = {auc_test}, "
+        f"mse_train = {mse_train}, mse_test = {mse_test}"
+    )

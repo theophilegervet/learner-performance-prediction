@@ -4,8 +4,18 @@ import torch.nn.functional as F
 
 
 class DKT1(nn.Module):
-    def __init__(self, num_items, num_skills, hid_size, num_hid_layers, drop_prob,
-                 item_in, skill_in, item_out, skill_out):
+    def __init__(
+        self,
+        num_items,
+        num_skills,
+        hid_size,
+        num_hid_layers,
+        drop_prob,
+        item_in,
+        skill_in,
+        item_out,
+        skill_out,
+    ):
         """Deep knowledge tracing (https://papers.nips.cc/paper/5654-deep-knowledge-tracing.pdf).
 
         Arguments:
@@ -26,9 +36,11 @@ class DKT1(nn.Module):
         self.skill_in = skill_in
         self.item_out = item_out
         self.skill_out = skill_out
-        self.input_size = (2 * num_items + 1) * item_in + (2 * num_skills + 1) * skill_in
+        self.input_size = (2 * num_items + 1) * item_in + (
+            2 * num_skills + 1
+        ) * skill_in
         self.output_size = num_items * item_out + num_skills * skill_out
-        
+
         self.lstm = nn.LSTM(self.input_size, hid_size, num_hid_layers, batch_first=True)
         self.dropout = nn.Dropout(p=drop_prob)
         self.out = nn.Linear(hid_size, self.output_size)
@@ -39,9 +51,9 @@ class DKT1(nn.Module):
             item_onehots = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
             skill_onehots = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
             input = torch.cat((item_onehots, skill_onehots), -1)
-        elif (item_inputs is not None):
+        elif item_inputs is not None:
             input = F.one_hot(item_inputs, 2 * self.num_items + 1).float()
-        elif (skill_inputs is not None):
+        elif skill_inputs is not None:
             input = F.one_hot(skill_inputs, 2 * self.num_skills + 1).float()
 
         output, hidden = self.lstm(input, hx=hidden)

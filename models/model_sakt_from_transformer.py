@@ -3,8 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from model_sakt2 import future_mask, clone, attention
 
+
 class NonSelfAttentionLayer(torch.nn.TransformerEncoderLayer):
-    def __init__(self, d_model, nhead, dim_feedforward=128, dropout=0.1, activation='relu'):
+    def __init__(
+        self, d_model, nhead, dim_feedforward=128, dropout=0.1, activation="relu"
+    ):
         super().__init__(d_model, nhead, dim_feedforward, dropout, activation)
 
     def forward(self, srcs, src_mask, src_key_padding_mask):

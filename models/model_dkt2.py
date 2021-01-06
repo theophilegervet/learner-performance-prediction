@@ -3,7 +3,9 @@ import torch.nn as nn
 
 
 class DKT2(nn.Module):
-    def __init__(self, num_items, num_skills, hid_size, embed_size, num_hid_layers, drop_prob):
+    def __init__(
+        self, num_items, num_skills, hid_size, embed_size, num_hid_layers, drop_prob
+    ):
         """Deep Knowledge Tracing (https://papers.nips.cc/paper/5654-deep-knowledge-tracing.pdf)
         with some changes inspired by
         Deep Hierarchical Knowledge Tracing (https://arxiv.org/pdf/1908.02146.pdf).
@@ -42,9 +44,11 @@ class DKT2(nn.Module):
         skill_inputs = self.skill_embeds(skill_inputs)
         label_inputs = label_inputs.unsqueeze(-1).float()
 
-        inputs = torch.cat([item_inputs, skill_inputs, item_inputs, skill_inputs], dim=-1)
-        inputs[..., :self.embed_size] *= label_inputs
-        inputs[..., self.embed_size:] *= 1 - label_inputs
+        inputs = torch.cat(
+            [item_inputs, skill_inputs, item_inputs, skill_inputs], dim=-1
+        )
+        inputs[..., : self.embed_size] *= label_inputs
+        inputs[..., self.embed_size :] *= 1 - label_inputs
         return inputs
 
     def get_query(self, item_ids, skill_ids):
