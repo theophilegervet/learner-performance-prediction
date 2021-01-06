@@ -102,7 +102,7 @@ Sample behavioral test is in `behavior_test.py`. To test a model:
 python behavior_test.py --dataset <dataset codename> --load_dir <load_directory> --filename <filename>
 ```
 
-This sample code examines first 30 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
+This sample code examines first 1000 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
 
 ### Results
 
