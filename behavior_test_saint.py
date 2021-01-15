@@ -153,4 +153,4 @@ if __name__ == "__main__":
         if result[i].item() >= result_false[i].item():
             false_cnt += 1
     with open(os.path.join(args.load_dir, "result.txt"), "w") as f:
-        f.write(str(num_inter)+str(true_cnt)+str(false_cnt))
+        f.write(str(num_inter)+" "+str(true_cnt)+" "+str(false_cnt))
