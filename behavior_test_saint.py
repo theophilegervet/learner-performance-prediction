@@ -30,7 +30,7 @@ class NewDataModule(pl.LightningDataModule):
         self.data = data
         train_data = InteractionDataset(self.data["train"], seq_len=seq_len,)
         val_data = InteractionDataset(self.data["val"], seq_len=seq_len,)
-        test_data = InteractionDataset(self.data["test"], seq_len=seq_len, stride=1,)
+        test_data = InteractionDataset(self.data["test"], seq_len=seq_len, stride=1, is_test=True)
         self.train_gen = torch.utils.data.DataLoader(
             dataset=train_data,
             shuffle=True,

@@ -18,24 +18,28 @@ from sklearn.metrics import roc_auc_score
 
 
 class InteractionDataset(torch.utils.data.Dataset):
-    def __init__(self, uid2sequence, seq_len=100, stride=50):
+    def __init__(self, uid2sequence, seq_len=100, stride=50, is_test=False):
         self.seq_len = seq_len
         if stride is None:
             self.stride = seq_len // 2
         else:
             self.stride = stride
+        self.is_test = is_test
         self.uid2sequence = uid2sequence
         self.sample_list = []
         for uid, seq in tqdm(self.uid2sequence.items()):
             num_inter = len(seq["item_id"])
-            start_idx, end_idx = 0, self.seq_len
-            while end_idx < num_inter:
+            if self.is_test:
+                self.sample_list.append((uid, max(0, num_inter - self.seq_len), num_inter))
+            else:
+                start_idx, end_idx = 0, self.seq_len
+                while end_idx < num_inter:
+                    self.sample_list.append((uid, start_idx, end_idx))
+                    start_idx += self.stride
+                    end_idx += self.stride
+                # Here, end_idx >= num_inter for the first time
+                end_idx = num_inter
                 self.sample_list.append((uid, start_idx, end_idx))
-                start_idx += self.stride
-                end_idx += self.stride
-            # Here, end_idx >= num_inter for the first time
-            end_idx = num_inter
-            self.sample_list.append((uid, start_idx, end_idx))
 
     def __len__(self):
         return len(self.sample_list)
