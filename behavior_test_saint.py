@@ -30,7 +30,7 @@ class NewDataModule(pl.LightningDataModule):
         self.data = data
         train_data = InteractionDataset(self.data["train"], seq_len=seq_len,)
         val_data = InteractionDataset(self.data["val"], seq_len=seq_len,)
-        test_data = InteractionDataset(self.data["test"], seq_len=seq_len, stride=1,)
+        test_data = InteractionDataset(self.data["test"], seq_len=seq_len, stride=1, is_test=True)
         self.train_gen = torch.utils.data.DataLoader(
             dataset=train_data,
             shuffle=True,
@@ -153,4 +153,4 @@ if __name__ == "__main__":
         if result[i].item() >= result_false[i].item():
             false_cnt += 1
     with open(os.path.join(args.load_dir, "result.txt"), "w") as f:
-        f.write(str(num_inter)+str(true_cnt)+str(false_cnt))
+        f.write(str(num_inter)+" "+str(true_cnt)+" "+str(false_cnt))
