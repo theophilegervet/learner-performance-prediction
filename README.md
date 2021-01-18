@@ -102,7 +102,7 @@ Sample behavioral test is in `behavior_test.py`. To test a model:
 python behavior_test.py --dataset <dataset codename> --load_dir <load_directory> --filename <filename>
 ```
 
-This sample code examines first 1000 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) ans check if the predicted correctness probability decreases.
+This sample code examines first 1000 test data. For each input data, we change all responses to 1(correct) and check if the predicted correctness probability increases. Similarly, we change all responses to 0(incorrect) and check if the predicted correctness probability decreases.
 
 ### Results
 
@@ -110,4 +110,4 @@ This sample code examines first 1000 test data. For each input data, we change a
 | -------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
 | Best-LR        |              |              |              |              |              |              |              |              |              |
 | DKT            | 10.3% / 0.6% | 1.3% / 0.1%  | 4.0% / 0.2%  | 5.3% / 35.1% | 5.8% / 4.0%  | 2.6% / 0.9%  | 2.7% / 0.0%  | 5.3% / 0.0%  | 0.2% / 0.1%  |
-| SAINT          |              |              | 7.2% / 2.1%  | 1.9% / 22.2% | 5.3% / 0.4%  |              |              |              | 6.0% / 4.2%  |
+| SAINT          | 27.2% / 6.9% | 8.6% / 2.4%  | 7.2% / 2.1%  | 2.7% / 17.7% | 6.4% / 4.3%  |              |              |              | 6.0% / 4.2%  |
