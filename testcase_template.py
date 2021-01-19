@@ -1,4 +1,32 @@
 import torch
+import pandas as pd
+from copy import deepcopy
+
+
+def df_perturbation(orig_df, perturb_func, pf_args):
+    """
+    Generates perturbed pandas dataframe object.
+
+    Arguments:
+        orig_df: original pandas dataframe object
+        perturb_func: perturbation function (ex. replace, add, ...)
+        pf_args: additional arguments for perturb_func
+    """
+    new_df_list = []
+    for user_id, user_key_df in orig_df.groupby(["user_id"]):
+        new_df = perturb_func(user_key_df, *pf_args)
+        new_df_list.append(new_df)
+    new_data = pd.concat(new_df_list, axis=0).reset_index(drop=True)
+    return new_data
+
+
+def perturb_review_step(orig_df):
+    correct_df = orig_df.loc[orig_df["correct"] == 1]
+    incorrect_df = orig_df.loc[orig_df["correct"] == 0]
+    review_df = deepcopy(incorrect_df)
+    review_df["correct"] = 1
+    orig_df.append(review_df)
+    return orig_df
 
 
 def generate_test_case(
