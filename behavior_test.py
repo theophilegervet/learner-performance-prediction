@@ -144,7 +144,7 @@ if __name__ == "__main__":
         bt_test_batch = prepare_batches(bt_test_data, 10, False)
         bt_test_preds = eval_batches(model, bt_test_batch)
         bt_test_df['model_pred'] = bt_test_preds
-        sub_df = bt_test_df.loc[bt_test_df['testpoint'].notnull()]
+        sub_df = bt_test_df.loc[bt_test_df['testpoint']==0]
         sub_df.to_csv('./bt_result.csv')
         print((sub_df['testpoint'] == sub_df['model_pred'].round()).mean())
         print(bt_test_preds)
