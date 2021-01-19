@@ -7,7 +7,7 @@ import torch
 from models.model_dkt2 import DKT2
 from models.model_sakt2 import SAKT
 
-from train_dkt2 import get_data
+from train_dkt2 import get_data, prepare_batches, eval_batches
 
 from testcase_template import *
 from utils import *
@@ -61,8 +61,8 @@ def test_flip_all(model, data):
 def test_seq_reconstruction(
     data_df, 
     item_or_skill='skill',
-    min_sample_num=4, 
-    min_thres=0.75,
+    min_sample_num=10, 
+    min_thres=0.8,
     max_delay=np.inf,  #TODO
     ):
     user_key_sample_len = {}
@@ -117,11 +117,11 @@ def test_seq_reconstruction(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
-    parser.add_argument("--dataset", type=str)
-    parser.add_argument("--model", type=str, choices=["lr", "dkt", "sakt"])
-    parser.add_argument("--test_type", nargs="+", default=[])
-    parser.add_argument("--load_dir", type=str)
-    parser.add_argument("--filename", type=str)
+    parser.add_argument("--dataset", type=str, default="ednet_small")
+    parser.add_argument("--model", type=str, choices=["lr", "dkt", "sakt"], default="dkt")
+    parser.add_argument("--test_type", nargs="+", default="reconstruction")
+    parser.add_argument("--load_dir", type=str, default="./save/dkt/")
+    parser.add_argument("--filename", type=str, default="ednet_small")
     args = parser.parse_args()
 
     saver = Saver(args.load_dir, args.filename)
@@ -133,11 +133,25 @@ if __name__ == "__main__":
         os.path.join("data", args.dataset, "preprocessed_data_test.csv"), sep="\t"
     )
 
-    test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
-
-    test_result = torch.Tensor(test_flip_all(model, test_data[:1000]))
-
-    # print(test_result)
-    print(test_result.size())
-    print("All-true perturbation result:", test_result[:, 2].sum().item())
-    print("All-false perturbation result:", test_result[:, 4].sum().item())
+    if args.test_type == 'reconstruction':
+        bt_test_path = os.path.join("data", args.dataset, "bt_reconstruct.csv")
+        if os.path.exists(bt_test_path) and False:
+            bt_test_df = pd.read_csv(bt_test_path, index_col=0)
+        else:
+            bt_test_df, new_test_meta = test_seq_reconstruction(test_df)
+            bt_test_df.to_csv(bt_test_path)
+        bt_test_data, _ = get_data(bt_test_df, train_split=1.0, randomize=False)
+        bt_test_batch = prepare_batches(bt_test_data, 10, False)
+        bt_test_preds = eval_batches(model, bt_test_batch)
+        bt_test_df['model_pred'] = bt_test_preds
+        sub_df = bt_test_df.loc[bt_test_df['testpoint'].notnull()]
+        sub_df.to_csv('./bt_result.csv')
+        print((sub_df['testpoint'] == sub_df['model_pred'].round()).mean())
+        print(bt_test_preds)
+    else:
+        test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
+        test_result = torch.Tensor(test_flip_all(model, test_data))
+        # print(test_result)
+        print(test_result.size())
+        print("All-true perturbation result:", test_result[:, 2].sum().item())
+        print("All-false perturbation result:", test_result[:, 4].sum().item())

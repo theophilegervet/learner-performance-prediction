@@ -182,6 +182,31 @@ def train(
             break
 
 
+def eval_batches(model, batches, device='cpu'):
+    model.eval()
+    test_preds = np.empty(0)
+    for (
+        item_inputs,
+        skill_inputs,
+        label_inputs,
+        item_ids,
+        skill_ids,
+        labels,
+    ) in batches:
+        with torch.no_grad():
+            if device == 'cuda':
+                item_inputs = item_inputs.cuda()
+                skill_inputs = skill_inputs.cuda()
+                label_inputs = label_inputs.cuda()
+                item_ids = item_ids.cuda()
+                skill_ids = skill_ids.cuda()
+            preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+            preds = torch.sigmoid(preds[labels >= 0]).cpu().numpy()
+            test_preds = np.concatenate([test_preds, preds])
+    return test_preds
+    
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train DKT.")
     parser.add_argument("--dataset", type=str)
@@ -189,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--savedir", type=str, default="save/dkt")
     parser.add_argument("--hid_size", type=int, default=200)
     parser.add_argument("--embed_size", type=int, default=200)
-    parser.add_argument("--num_hid_layers", type=int, default=1)
+    parser.add_argument("--num_hid_layers", type=int, default=2)
     parser.add_argument("--drop_prob", type=float, default=0.5)
     parser.add_argument("--batch_size", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-2)
@@ -248,32 +273,15 @@ if __name__ == "__main__":
     model = saver.load()
     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
     test_batches = prepare_batches(test_data, args.batch_size, randomize=False)
-    test_preds = np.empty(0)
 
     # Predict on test set
-    model.eval()
-    for (
-        item_inputs,
-        skill_inputs,
-        label_inputs,
-        item_ids,
-        skill_ids,
-        labels,
-    ) in test_batches:
-        with torch.no_grad():
-            item_inputs = item_inputs.cuda()
-            skill_inputs = skill_inputs.cuda()
-            label_inputs = label_inputs.cuda()
-            item_ids = item_ids.cuda()
-            skill_ids = skill_ids.cuda()
-            preds = model(item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
-            preds = torch.sigmoid(preds[labels >= 0]).cpu().numpy()
-            test_preds = np.concatenate([test_preds, preds])
+    test_preds = eval_batches(model, test_batches)
 
     # Write predictions to csv
-    test_df["DKT2"] = test_preds
-    test_df.to_csv(
-        f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
-    )
+    if 0:
+        test_df["DKT2"] = test_preds
+        test_df.to_csv(
+            f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
+        )
 
     print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
