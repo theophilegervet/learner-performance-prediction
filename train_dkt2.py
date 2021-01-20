@@ -209,16 +209,16 @@ def eval_batches(model, batches, device='cpu'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train DKT.")
-    parser.add_argument("--dataset", type=str)
+    parser.add_argument("--dataset", type=str, default="ednet_small")
     parser.add_argument("--logdir", type=str, default="runs/dkt")
     parser.add_argument("--savedir", type=str, default="save/dkt")
-    parser.add_argument("--hid_size", type=int, default=200)
-    parser.add_argument("--embed_size", type=int, default=200)
-    parser.add_argument("--num_hid_layers", type=int, default=2)
+    parser.add_argument("--hid_size", type=int, default=100)
+    parser.add_argument("--embed_size", type=int, default=100)
+    parser.add_argument("--num_hid_layers", type=int, default=1)
     parser.add_argument("--drop_prob", type=float, default=0.5)
     parser.add_argument("--batch_size", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-2)
-    parser.add_argument("--num_epochs", type=int, default=100)
+    parser.add_argument("--num_epochs", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     test_batches = prepare_batches(test_data, args.batch_size, randomize=False)
 
     # Predict on test set
-    test_preds = eval_batches(model, test_batches)
+    test_preds = eval_batches(model, test_batches, device='cuda')
 
     # Write predictions to csv
     if 0:

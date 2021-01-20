@@ -236,7 +236,7 @@ class SAINT(pl.LightningModule):
                 observed_mask: 1 for observed features, 0 for otherwise
             Unused items:
                 tp_to_predict: equal to tp_to_predict
-                mode: string
+                mode: stringnvidia
             n_tp_to_sample: not used
             n_traj_samples: not usedo
             kl_coeff: not used
@@ -437,7 +437,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--eval_steps", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--gpu", type=str)
+    parser.add_argument("--gpu", type=str, default="0,1")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--layer_count", type=int, default=2)
     parser.add_argument("--head_count", type=int, default=8)
@@ -447,7 +447,7 @@ if __name__ == "__main__":
     parser.add_argument("--dim_ff", type=int, default=1024)
     parser.add_argument("--seq_len", type=int, default=100)
     parser.add_argument("--dropout_rate", type=float, default=0.1)
-    parser.add_argument("--dataset", type=str, default="ednet")
+    parser.add_argument("--dataset", type=str, default="ednet_small")
     args = parser.parse_args()
 
     # parse gpus
@@ -482,7 +482,7 @@ if __name__ == "__main__":
 
     checkpoint_callback = ModelCheckpoint(
         monitor="val_auc",
-        dirpath=f"weight/{args.name}/",
+        dirpath=f"save/saint/{args.name}/",
         filename=f"best_val_auc",
         mode="max",
     )

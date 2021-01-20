@@ -57,12 +57,11 @@ def test_flip_all(model, data):
     return test_results
 
 
-
 def test_seq_reconstruction(
     data_df, 
     item_or_skill='skill',
-    min_sample_num=10, 
-    min_thres=0.8,
+    min_sample_num=3, 
+    min_thres=1,
     max_delay=np.inf,  #TODO
     ):
     user_key_sample_len = {}
@@ -73,7 +72,7 @@ def test_seq_reconstruction(
             continue
         user_key_sample_len[(user_id, key_id)] = len(user_key_df)
         expand_win_avg = user_key_df['correct'].expanding(min_periods=min_sample_num).mean()
-        test_points = expand_win_avg.loc[expand_win_avg.subtract(0.5).abs() >= (1 - min_thres)]
+        test_points = expand_win_avg.loc[expand_win_avg.subtract(0.5).abs() >= abs(min_thres - 0.5)]
         if len (test_points):
             data_df.loc[test_points.index, 'testpoint'] = test_points.round()
    
@@ -118,14 +117,15 @@ def test_seq_reconstruction(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
     parser.add_argument("--dataset", type=str, default="ednet_small")
-    parser.add_argument("--model", type=str, choices=["lr", "dkt", "sakt"], default="dkt")
+    parser.add_argument("--model", type=str, \
+        choices=["lr", "dkt", "sakt", "saint"], default="dkt")
     parser.add_argument("--test_type", nargs="+", default="reconstruction")
     parser.add_argument("--load_dir", type=str, default="./save/dkt/")
     parser.add_argument("--filename", type=str, default="ednet_small")
     args = parser.parse_args()
 
     saver = Saver(args.load_dir, args.filename)
-    model = saver.load().to(torch.device("cpu"))
+    model = saver.load().to(torch.device("cuda"))
     model.eval()
 
     # testing one sample data: change first interaction
@@ -134,20 +134,24 @@ if __name__ == "__main__":
     )
 
     if args.test_type == 'reconstruction':
-        bt_test_path = os.path.join("data", args.dataset, "bt_reconstruct.csv")
+        TEST_MODE = 'item'
+        bt_test_path = os.path.join("data", args.dataset, "bt_reconstruct_{}.csv".format(TEST_MODE))
         if os.path.exists(bt_test_path) and False:
             bt_test_df = pd.read_csv(bt_test_path, index_col=0)
         else:
-            bt_test_df, new_test_meta = test_seq_reconstruction(test_df)
+            bt_test_df, new_test_meta = test_seq_reconstruction(test_df, item_or_skill=TEST_MODE)
             bt_test_df.to_csv(bt_test_path)
         bt_test_data, _ = get_data(bt_test_df, train_split=1.0, randomize=False)
         bt_test_batch = prepare_batches(bt_test_data, 10, False)
-        bt_test_preds = eval_batches(model, bt_test_batch)
+        bt_test_preds = eval_batches(model, bt_test_batch, 'cuda')
         bt_test_df['model_pred'] = bt_test_preds
-        sub_df = bt_test_df.loc[bt_test_df['testpoint']==0]
-        sub_df.to_csv('./bt_result.csv')
-        print((sub_df['testpoint'] == sub_df['model_pred'].round()).mean())
-        print(bt_test_preds)
+        sub_df = bt_test_df.groupby('user_id').last()
+        sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
+        sub_df.to_csv('./bt_result_{}.csv'.format(TEST_MODE))
+        print(sub_df['testpass'].mean())
+        print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].mean())
+        print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].mean())
+        print(new_test_meta)
     else:
         test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
         test_result = torch.Tensor(test_flip_all(model, test_data))
