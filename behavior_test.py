@@ -8,9 +8,11 @@ from models.model_dkt2 import DKT2
 from models.model_sakt2 import SAKT
 
 from train_dkt2 import get_data, prepare_batches, eval_batches
+from train_saint import SAINT, DataModule, predict_saint
 
 from testcase_template import *
 from utils import *
+import pytorch_lightning as pl
 
 
 def wrap_input(input):
@@ -59,7 +61,7 @@ def test_flip_all(model, data):
 
 def test_seq_reconstruction(
     data_df, 
-    item_or_skill='skill',
+    item_or_skill='item',
     min_sample_num=3, 
     min_thres=1,
     max_delay=np.inf,  #TODO
@@ -118,15 +120,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
     parser.add_argument("--dataset", type=str, default="ednet_small")
     parser.add_argument("--model", type=str, \
-        choices=["lr", "dkt", "sakt", "saint"], default="dkt")
+        choices=["lr", "dkt", "sakt", "saint"], default="saint")
     parser.add_argument("--test_type", nargs="+", default="reconstruction")
-    parser.add_argument("--load_dir", type=str, default="./save/dkt/")
+    parser.add_argument("--load_dir", type=str, default="./save/")
     parser.add_argument("--filename", type=str, default="ednet_small")
+    parser.add_argument("--gpu", type=str, default="0,1")
     args = parser.parse_args()
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-    saver = Saver(args.load_dir, args.filename)
-    model = saver.load().to(torch.device("cuda"))
-    model.eval()
+    # LOAD MODEL - SAINT OR {DKT, BESTLR, SAKT}
+    if args.model == 'saint':
+        import pickle
+        checkpoint_path = './save/saint/' + args.filename + '.ckpt'
+        with open(checkpoint_path.replace('.ckpt', '_config.pkl'), 'rb') as file:
+            saint_config = argparse.Namespace(**pickle.load(file))
+        model = SAINT.load_from_checkpoint(checkpoint_path, config=saint_config\
+            ).to(torch.device("cuda"))
+        model.eval()
+    else:
+        saver = Saver(args.load_dir + f'/{args.dataset}/', args.filename)
+        model = saver.load().to(torch.device("cuda"))
+        model.eval()
 
     # testing one sample data: change first interaction
     test_df = pd.read_csv(
@@ -136,21 +150,27 @@ if __name__ == "__main__":
     if args.test_type == 'reconstruction':
         TEST_MODE = 'item'
         bt_test_path = os.path.join("data", args.dataset, "bt_reconstruct_{}.csv".format(TEST_MODE))
-        if os.path.exists(bt_test_path) and False:
-            bt_test_df = pd.read_csv(bt_test_path, index_col=0)
+        bt_test_df, new_test_meta = test_seq_reconstruction(test_df, item_or_skill=TEST_MODE)
+        bt_test_df.to_csv(bt_test_path)
+        if args.model == 'saint':
+            datamodule = DataModule(saint_config, overwrite_test_df=bt_test_df)
+            trainer = pl.Trainer(auto_select_gpus=True, callbacks=[], max_steps=0)
+            bt_test_preds = predict_saint(saint_model=model, dataloader=datamodule.test_dataloader())
+            print(len(bt_test_preds))
+            print(bt_test_preds)
+            sub_df = bt_test_df.groupby('user_id').last()
+            sub_df['model_pred'] = bt_test_preds.cpu()
         else:
-            bt_test_df, new_test_meta = test_seq_reconstruction(test_df, item_or_skill=TEST_MODE)
-            bt_test_df.to_csv(bt_test_path)
-        bt_test_data, _ = get_data(bt_test_df, train_split=1.0, randomize=False)
-        bt_test_batch = prepare_batches(bt_test_data, 10, False)
-        bt_test_preds = eval_batches(model, bt_test_batch, 'cuda')
-        bt_test_df['model_pred'] = bt_test_preds
-        sub_df = bt_test_df.groupby('user_id').last()
+            bt_test_data, _ = get_data(bt_test_df, train_split=1.0, randomize=False)
+            bt_test_batch = prepare_batches(bt_test_data, 10, False)
+            bt_test_preds = eval_batches(model, bt_test_batch, 'cuda')
+            bt_test_df['model_pred'] = bt_test_preds
+            sub_df = bt_test_df.groupby('user_id').last()
         sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
         sub_df.to_csv('./bt_result_{}.csv'.format(TEST_MODE))
-        print(sub_df['testpass'].mean())
-        print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].mean())
-        print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].mean())
+        print(sub_df['testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].describe())
         print(new_test_meta)
     else:
         test_data, _ = get_data(test_df, train_split=1.0, randomize=False)

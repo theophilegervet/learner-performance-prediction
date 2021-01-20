@@ -6,6 +6,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 import argparse
 import dill as pkl
+import pickle
 import pandas as pd
 import math
 import wandb
@@ -16,15 +17,18 @@ from torch.optim.lr_scheduler import LambdaLR
 from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.metrics import roc_auc_score
 
+TEST_STRIDE = 100
+DEVICE = 'cuda'
 
 class InteractionDataset(torch.utils.data.Dataset):
-    def __init__(self, uid2sequence, seq_len=100, stride=50, is_test=False):
+    def __init__(self, uid2sequence, seq_len=100, stride=50, is_test=False, last_only=False):
         self.seq_len = seq_len
         if stride is None:
             self.stride = seq_len // 2
         else:
             self.stride = stride
         self.is_test = is_test
+        self.last_only = last_only
         self.uid2sequence = uid2sequence
         self.sample_list = []
         for uid, seq in tqdm(self.uid2sequence.items()):
@@ -62,18 +66,21 @@ class InteractionDataset(torch.utils.data.Dataset):
             infer_mask = [False] * (self.seq_len - self.stride) + [True] * self.stride
         else:
             infer_mask = [True] * self.seq_len
+
+        if self.last_only:
+            infer_mask = [False] * (fragment_len - 1) + [True] + [False] * pad_size
         features["infer_mask"] = [(x and y) for (x, y) in zip(infer_mask, pad_mask)]
 
         return {
-            "qid": torch.LongTensor(features["qid"]),
-            "skill": torch.LongTensor(features["skill"]),
-            "is_correct": torch.LongTensor(features["is_correct"]),
-            "pad_mask": torch.BoolTensor(features["pad_mask"]),
-            "infer_mask": torch.BoolTensor(features["infer_mask"]),
+            "qid": torch.LongTensor(features["qid"]).to(DEVICE),
+            "skill": torch.LongTensor(features["skill"]).to(DEVICE),
+            "is_correct": torch.LongTensor(features["is_correct"]).to(DEVICE),
+            "pad_mask": torch.BoolTensor(features["pad_mask"]).to(DEVICE),
+            "infer_mask": torch.BoolTensor(features["infer_mask"]).to(DEVICE),
         }
 
 
-def get_data(dataset):
+def get_data(dataset, overwrite_test_df=None):
     data = {}
     modes = ["train", "val", "test"]
     if dataset in ["ednet", "ednet_medium"]:
@@ -84,52 +91,61 @@ def get_data(dataset):
         train_df = pd.read_csv(
             os.path.join("data", dataset, "preprocessed_data_train.csv"), sep="\t"
         )
-        test_df = pd.read_csv(
-            os.path.join("data", dataset, "preprocessed_data_test.csv"), sep="\t"
-        )
+        if overwrite_test_df is not None:
+            test_df = overwrite_test_df
+        else:
+            test_df = pd.read_csv(
+                os.path.join("data", dataset, "preprocessed_data_test.csv"), sep="\t"
+            )
 
         data = {mode: {} for mode in modes}
         for (uid, _data) in tqdm(test_df.groupby("user_id")):
             seqs = _data.to_dict()
             del seqs["user_id"], seqs["timestamp"]
             data["test"][uid] = {key: list(x.values()) for key, x in seqs.items()}
-        train_val = {}
-        for (uid, _data) in tqdm(train_df.groupby("user_id")):
-            seqs = _data.to_dict()
-            del seqs["user_id"], seqs["timestamp"]
-            train_val[uid] = {key: list(x.values()) for key, x in seqs.items()}
-        num_val_users = len(train_val) // 8
-        _train_users = list(train_val.keys())
-        np.random.shuffle(_train_users)
-        val_users = _train_users[:num_val_users]
-        for uid, seq in train_val.items():
-            if uid in val_users:
-                data["val"][uid] = seq
-            else:
-                data["train"][uid] = seq
+        if overwrite_test_df is None:
+            train_val = {}
+            for (uid, _data) in tqdm(train_df.groupby("user_id")):
+                seqs = _data.to_dict()
+                del seqs["user_id"], seqs["timestamp"]
+                train_val[uid] = {key: list(x.values()) for key, x in seqs.items()}
+            num_val_users = len(train_val) // 8
+            _train_users = list(train_val.keys())
+            np.random.shuffle(_train_users)
+            val_users = _train_users[:num_val_users]
+            for uid, seq in train_val.items():
+                if uid in val_users:
+                    data["val"][uid] = seq
+                else:
+                    data["train"][uid] = seq
     return data
 
 
 class DataModule(pl.LightningDataModule):
-    def __init__(self, config):
+    def __init__(self, config, overwrite_test_df=None):
         super().__init__()
-        self.data = get_data(config.dataset)
-        train_data = InteractionDataset(self.data["train"], seq_len=config.seq_len,)
-        val_data = InteractionDataset(self.data["val"], seq_len=config.seq_len,)
+        self.data = get_data(config.dataset, overwrite_test_df=overwrite_test_df)
+        if overwrite_test_df is None:
+            train_data = InteractionDataset(self.data["train"], seq_len=config.seq_len,)
+            val_data = InteractionDataset(self.data["val"], seq_len=config.seq_len,)
+            self.train_gen = torch.utils.data.DataLoader(
+                dataset=train_data,
+                shuffle=True,
+                batch_size=config.train_batch,
+                num_workers=config.num_workers,
+            )
+            self.val_gen = torch.utils.data.DataLoader(
+                dataset=val_data,
+                shuffle=False,
+                batch_size=config.test_batch,
+                num_workers=config.num_workers,
+            )
+        else:
+            self.train_gen = None
+            self.val_gen = None
+
         test_data = InteractionDataset(
-            self.data["test"], seq_len=config.seq_len, stride=1,
-        )
-        self.train_gen = torch.utils.data.DataLoader(
-            dataset=train_data,
-            shuffle=True,
-            batch_size=config.train_batch,
-            num_workers=config.num_workers,
-        )
-        self.val_gen = torch.utils.data.DataLoader(
-            dataset=val_data,
-            shuffle=False,
-            batch_size=config.test_batch,
-            num_workers=config.num_workers,
+            self.data["test"], seq_len=config.seq_len, is_test=True, last_only=True
         )
         self.test_gen = torch.utils.data.DataLoader(
             dataset=test_data,
@@ -424,14 +440,27 @@ def str2bool(val):
     return ret
 
 
+def predict_saint(saint_model, dataloader):
+    preds = []
+    for batch in tqdm(dataloader):
+        test_res = saint_model.compute_all_losses(batch)
+        pred = test_res["pred"]
+        infer_mask = batch["infer_mask"]
+        nonzeros = torch.nonzero(infer_mask, as_tuple=True)
+        pred = pred[nonzeros].sigmoid()
+        preds.append(pred)
+    preds = torch.cat(preds, dim=0).view(-1)
+    return preds
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_wandb", type=str2bool, default=False)
     parser.add_argument("--project", type=str)
     parser.add_argument("--name", type=str)
-    parser.add_argument("--val_check_steps", type=int, default=100)
+    parser.add_argument("--val_check_steps", type=int, default=50)
     parser.add_argument("--random_seed", type=int, default=2)
-    parser.add_argument("--num_steps", type=int, default=50000)
+    parser.add_argument("--num_steps", type=int, default=10000)
     parser.add_argument("--train_batch", type=int, default=128)
     parser.add_argument("--test_batch", type=int, default=128)
     parser.add_argument("--num_workers", type=int, default=0)
@@ -482,8 +511,8 @@ if __name__ == "__main__":
 
     checkpoint_callback = ModelCheckpoint(
         monitor="val_auc",
-        dirpath=f"save/saint/{args.name}/",
-        filename=f"best_val_auc",
+        dirpath=f"save/saint/",
+        filename=f"{args.dataset}",
         mode="max",
     )
     trainer = pl.Trainer(
@@ -497,4 +526,7 @@ if __name__ == "__main__":
     trainer.fit(model=model, datamodule=datamodule)
     checkpoint_path = checkpoint_callback.best_model_path
     model = SAINT.load_from_checkpoint(checkpoint_path, config=args)
+
+    with open(checkpoint_path.replace('.ckpt', '_config.pkl'), 'wb+') as file:
+        pickle.dump(args.__dict__, file)
     trainer.test(model=model, datamodule=datamodule)
