@@ -1,6 +1,7 @@
 import torch
 import pandas as pd
 from copy import deepcopy
+import random
 
 
 def df_perturbation(orig_df, perturb_func, pf_args):
@@ -17,7 +18,11 @@ def df_perturbation(orig_df, perturb_func, pf_args):
         new_df = perturb_func(user_key_df, *pf_args)
         new_df_list.append(new_df)
     new_data = pd.concat(new_df_list, axis=0).reset_index(drop=True)
-    return new_data
+    data_meta = {
+        'num_sample': new_data['user_id'].unique().shape[0],
+        'num_interaction': new_data.shape[0],
+    }
+    return new_data, data_meta
 
 
 def perturb_review_step(orig_df):
@@ -25,8 +30,20 @@ def perturb_review_step(orig_df):
     incorrect_df = orig_df.loc[orig_df["correct"] == 0]
     review_df = deepcopy(incorrect_df)
     review_df["correct"] = 1
-    orig_df.append(review_df)
+    orig_df = orig_df.append(review_df).reset_index(drop=True)
     return orig_df
+
+
+def perturb_add_last(orig_df, row_index, new_value):
+    new_df = deepcopy(orig_df.iloc[row_index])
+    new_df["correct"] = new_value
+    orig_df = orig_df.append(new_df).reset_index(drop=True)
+    return orig_df
+
+
+def perturb_add_last_random(orig_df, new_value):
+    row_index = random.randrange(0, len(orig_df))
+    return perturb_add_last(orig_df, row_index, new_value)
 
 
 def generate_test_case(
