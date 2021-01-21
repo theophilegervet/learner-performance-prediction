@@ -130,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_dir", type=str, default="./save/")
     parser.add_argument("--filename", type=str, default="ednet_small")
     parser.add_argument("--gpu", type=str, default="0,1")
+    parser.add_argument("--diff_threshold", type=float, default=0.05)
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
@@ -153,7 +154,7 @@ if __name__ == "__main__":
 
     bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
 
-    # process for each test type: setting bt_test_df and new_test_meta
+    # setting bt_test_df and new_test_meta
     if args.test_type == 'reconstruction':
         bt_test_df, new_test_meta = test_seq_reconstruction(test_df, item_or_skill='item')
     elif args.test_type == 'add_last':
@@ -165,6 +166,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError("Not implemented test_type")
 
+    # get model output (sub_df)
     bt_test_df.to_csv(bt_test_path)
     if args.model == 'saint':
         datamodule = DataModule(saint_config, overwrite_test_df=bt_test_df)
@@ -180,13 +182,38 @@ if __name__ == "__main__":
         bt_test_preds = eval_batches(model, bt_test_batch, 'cuda')
         bt_test_df['model_pred'] = bt_test_preds
         sub_df = bt_test_df.groupby('user_id').last()
-    sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
-    sub_df.to_csv('./bt_result_{}.csv'.format(args.test_type))
-    print(sub_df['testpass'].describe())
-    print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].describe())
-    print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].describe())
-    print(new_test_meta)
 
+    # check test constraints
+    if args.test_type == 'reconstruction':
+        sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
+        sub_df.to_csv('./bt_result_{}.csv'.format(args.test_type))
+        print(sub_df['testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].describe())
+        print(new_test_meta)
+    elif args.test_type == 'add_last':
+        user_group_df = sub_df.groupby('orig_user_id')
+        user_group_df['testpass'] = False
+        for name, group in user_group_df:
+            orig_prob = group.loc[group['is_perturbed'] == 0]['model_pred'].item()
+            corr_prob = group.loc[group['is_perturbed'] == 1]['model_pred'].item()
+            incorr_prob = group.loc[group['is_perturbed'] == -1]['model_pred'].item()
+            if corr_prob >= orig_prob - args.diff_threshold:
+                user_group_df.loc[
+                    (user_group_df['orig_user_id'] == name) & (user_group_df['is_perturbed'] == 1),
+                    'testpass'] = True
+            if incorr_prob <= orig_prob + args.diff_threshold:
+                user_group_df.loc[
+                    (user_group_df['orig_user_id'] == name) & (user_group_df['is_perturbed'] == 1),
+                    'testpass'] = True
+        print(user_group_df.loc[user_group_df['is_perturbed'] != 0, 'testpass'].describe())
+        print(user_group_df.loc[user_group_df['is_perturbed'] == 1, 'testpass'].describe())
+        print(user_group_df.loc[user_group_df['is_perturbed'] == -1, 'testpass'].describe())
+        print(new_test_meta)
+    elif args.test_type == 'deletion':
+        pass
+    elif args.test_type == 'replacement':
+        pass
 
     # else:
     #     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)

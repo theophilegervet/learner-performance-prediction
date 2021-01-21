@@ -41,10 +41,32 @@ def perturb_add_last(orig_df, row_index, new_value):
     return orig_df
 
 
-def perturb_add_last_random(orig_df, new_value):
+def perturb_add_last_random(orig_df):
+    orig_df['orig_user_id'] = orig_df['user_id']
+    orig_df['is_perturbed'] = 0
     row_index = random.randrange(0, len(orig_df))
-    return perturb_add_last(orig_df, row_index, new_value)
+    corr_df = perturb_add_last(orig_df, row_index, 1)
+    corr_df['user_id'] = orig_df['user_id'] + "corr"
+    corr_df['is_perturbed'] = 1
+    incorr_df = perturb_add_last(orig_df, row_index, 0)
+    incorr_df['user_id'] = orig_df['user_id'] + "incorr"
+    incorr_df['is_perturbed'] = -1
 
+    new_df = deepcopy(orig_df.iloc[row_index])
+
+    orig_df = orig_df.append(new_df).reset_index(drop=True)
+    corr_df = corr_df.append(new_df).reset_index(drop=True)
+    incorr_df = incorr_df.append(new_df).reset_index(drop=True)
+
+    new_df_list = [orig_df, corr_df, incorr_df]
+    return pd.concat(new_df_list, axis=0).reset_index(drop=True)
+
+
+def perturb_delete(orig_df, row_index):
+    pass
+
+
+# depercated templates
 
 def generate_test_case(
     orig_input, orig_output, perturb_func, pf_args, pass_condition, pc_args=()
