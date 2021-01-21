@@ -11,6 +11,50 @@ from testcase_template import *
 from utils import *
 
 
+# def wrap_input(input):
+#     return (torch.stack((x,)) for x in input)
+
+
+# def test_flip_all(model, data):
+#     with torch.no_grad():
+#         test_results = []
+#         for single_data in data:
+#             (
+#                 item_inputs,
+#                 skill_inputs,
+#                 label_inputs,
+#                 item_ids,
+#                 skill_ids,
+#                 labels,
+#             ) = single_data
+#             orig_input = (item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
+#             orig_output = model(*(wrap_input(orig_input)))
+#             orig_output = torch.sigmoid(orig_output)
+#             orig_output = orig_output[0][-1]
+#             perturb_input, pass_range_true = generate_test_case(
+#                 orig_input, orig_output, perturb_flip_all, (1,), pass_increase
+#             )
+#             perturb_output_true = model(*(wrap_input(perturb_input)))
+#             perturb_output_true = torch.sigmoid(perturb_output_true)
+#             perturb_output_true = perturb_output_true[0][-1]
+#             perturb_input, pass_range_false = generate_test_case(
+#                 orig_input, orig_output, perturb_flip_all, (0,), pass_decrease
+#             )
+#             perturb_output_false = model(*(wrap_input(perturb_input)))
+#             perturb_output_false = torch.sigmoid(perturb_output_false)
+#             perturb_output_false = perturb_output_false[0][-1]
+#             test_results.append(
+#                 [
+#                     orig_output.item(),
+#                     perturb_output_true.item(),
+#                     float_in_range(perturb_output_true, pass_range_true).item(),
+#                     perturb_output_false.item(),
+#                     float_in_range(perturb_output_false, pass_range_false).item(),
+#                 ]
+#             )
+#     return test_results
+
+
 def wrap_input(input):
     return (torch.stack((x,)) for x in input)
 

@@ -122,7 +122,7 @@ def get_data(dataset, overwrite_test_df=None):
 
 
 class DataModule(pl.LightningDataModule):
-    def __init__(self, config, overwrite_test_df=None):
+    def __init__(self, config, overwrite_test_df=None, last_one_only=False):
         super().__init__()
         self.data = get_data(config.dataset, overwrite_test_df=overwrite_test_df)
         if overwrite_test_df is None:
@@ -145,7 +145,7 @@ class DataModule(pl.LightningDataModule):
             self.val_gen = None
 
         test_data = InteractionDataset(
-            self.data["test"], seq_len=config.seq_len, is_test=True, last_only=True
+            self.data["test"], seq_len=config.seq_len, is_test=True, last_only=last_one_only
         )
         self.test_gen = torch.utils.data.DataLoader(
             dataset=test_data,

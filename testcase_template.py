@@ -4,7 +4,7 @@ from copy import deepcopy
 import random
 
 
-def df_perturbation(orig_df, perturb_func, pf_args):
+def df_perturbation(orig_df, perturb_func, **pf_args):
     """
     Generates perturbed pandas dataframe object.
 
@@ -15,7 +15,7 @@ def df_perturbation(orig_df, perturb_func, pf_args):
     """
     new_df_list = []
     for user_id, user_key_df in orig_df.groupby(["user_id"]):
-        new_df = perturb_func(user_key_df, *pf_args)
+        new_df = perturb_func(user_key_df, **pf_args)
         new_df_list.append(new_df)
     new_data = pd.concat(new_df_list, axis=0).reset_index(drop=True)
     data_meta = {

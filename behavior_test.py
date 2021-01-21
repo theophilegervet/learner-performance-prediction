@@ -20,50 +20,6 @@ from utils import *
 import pytorch_lightning as pl
 
 
-# def wrap_input(input):
-#     return (torch.stack((x,)) for x in input)
-
-
-# def test_flip_all(model, data):
-#     with torch.no_grad():
-#         test_results = []
-#         for single_data in data:
-#             (
-#                 item_inputs,
-#                 skill_inputs,
-#                 label_inputs,
-#                 item_ids,
-#                 skill_ids,
-#                 labels,
-#             ) = single_data
-#             orig_input = (item_inputs, skill_inputs, label_inputs, item_ids, skill_ids)
-#             orig_output = model(*(wrap_input(orig_input)))
-#             orig_output = torch.sigmoid(orig_output)
-#             orig_output = orig_output[0][-1]
-#             perturb_input, pass_range_true = generate_test_case(
-#                 orig_input, orig_output, perturb_flip_all, (1,), pass_increase
-#             )
-#             perturb_output_true = model(*(wrap_input(perturb_input)))
-#             perturb_output_true = torch.sigmoid(perturb_output_true)
-#             perturb_output_true = perturb_output_true[0][-1]
-#             perturb_input, pass_range_false = generate_test_case(
-#                 orig_input, orig_output, perturb_flip_all, (0,), pass_decrease
-#             )
-#             perturb_output_false = model(*(wrap_input(perturb_input)))
-#             perturb_output_false = torch.sigmoid(perturb_output_false)
-#             perturb_output_false = perturb_output_false[0][-1]
-#             test_results.append(
-#                 [
-#                     orig_output.item(),
-#                     perturb_output_true.item(),
-#                     float_in_range(perturb_output_true, pass_range_true).item(),
-#                     perturb_output_false.item(),
-#                     float_in_range(perturb_output_false, pass_range_false).item(),
-#                 ]
-#             )
-#     return test_results
-
-
 def test_seq_reconstruction(
     data_df, 
     item_or_skill='item',
@@ -121,6 +77,35 @@ def test_seq_reconstruction(
     return new_data, data_meta
 
 
+def test_repeated_feed(
+    data_df, 
+    item_or_skill='item',
+    repeat_val_list=[1, 0],
+    repeat_length=10
+    ):
+    if item_or_skill == 'skill':
+        raise NotImplementedError
+    item2skill = data_df.groupby('item_id').first()['skill_id']
+    df_list = []
+    sorted_timestamps = data_df['timestamp'].sort_values()
+    for item_id in data_df[f'{item_or_skill}_id'].unique():
+        for repeat_val in repeat_val_list:
+            content_val_row = pd.Series({
+                'user_id': item_id + repeat_val * data_df['user_id'].max(), 
+                'item_id': item_id,
+                'skill_id': item2skill[item_id],
+                'correct': repeat_val,
+            })
+            content_val_df = pd.concat([content_val_row.to_frame().T \
+                for _ in range(repeat_length)], axis=0).reset_index(drop=True)
+            content_val_df['timestamp'] = sorted_timestamps.iloc[
+                random.sample(list(range(len(sorted_timestamps))), repeat_length)].values
+            df_list.append(content_val_df)
+    total_df = pd.concat(df_list, axis=0).reset_index(drop=True)
+    total_df['testpoint'] = total_df['correct']
+    return total_df, {}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
     parser.add_argument("--dataset", type=str, default="ednet_small")
@@ -137,14 +122,14 @@ if __name__ == "__main__":
     # LOAD MODEL - SAINT OR {DKT, BESTLR, SAKT}
     if args.model == 'saint':
         import pickle
-        checkpoint_path = './save/saint/' + args.filename + '.ckpt'
+        checkpoint_path = f'./save/{args.model}/' + args.filename + '.ckpt'
         with open(checkpoint_path.replace('.ckpt', '_config.pkl'), 'rb') as file:
             saint_config = argparse.Namespace(**pickle.load(file))
         model = SAINT.load_from_checkpoint(checkpoint_path, config=saint_config\
             ).to(torch.device("cuda"))
         model.eval()
     else:
-        saver = Saver(args.load_dir + f'/{args.dataset}/', args.filename)
+        saver = Saver(args.load_dir + f'/{args.model}/', args.filename)
         model = saver.load().to(torch.device("cuda"))
         model.eval()
 
@@ -152,13 +137,15 @@ if __name__ == "__main__":
         os.path.join("data", args.dataset, "preprocessed_data_test.csv"), sep="\t"
     )
 
-    bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
-
-    # setting bt_test_df and new_test_meta
+    # Generate new test data based on test type.
+    last_one_only = False
     if args.test_type == 'reconstruction':
         bt_test_df, new_test_meta = test_seq_reconstruction(test_df, item_or_skill='item')
+        last_one_only = True
+    elif args.test_type == 'repetition':
+        bt_test_df, new_test_meta = test_repeated_feed(test_df, item_or_skill='item')
     elif args.test_type == 'add_last':
-        bt_test_df, new_test_meta = df_perturbation(test_df, perturb_add_last_random, (1))
+        bt_test_df, new_test_meta = df_perturbation(test_df, perturb_add_last_random)
     elif args.test_type == 'deletion':
         pass
     elif args.test_type == 'replacement':
@@ -166,31 +153,43 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError("Not implemented test_type")
 
-    # get model output (sub_df)
+    # Generate model output.
+    bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
     bt_test_df.to_csv(bt_test_path)
     if args.model == 'saint':
-        datamodule = DataModule(saint_config, overwrite_test_df=bt_test_df)
+        datamodule = DataModule(saint_config, overwrite_test_df=bt_test_df, last_one_only=last_one_only)
         trainer = pl.Trainer(auto_select_gpus=True, callbacks=[], max_steps=0)
         bt_test_preds = predict_saint(saint_model=model, dataloader=datamodule.test_dataloader())
-        print(len(bt_test_preds))
-        print(bt_test_preds)
-        sub_df = bt_test_df.groupby('user_id').last()
+        if last_one_only:
+            sub_df = bt_test_df.groupby('user_id').last()
+        else:
+            sub_df = bt_test_df
         sub_df['model_pred'] = bt_test_preds.cpu()
     else:
         bt_test_data, _ = get_data(bt_test_df, train_split=1.0, randomize=False)
         bt_test_batch = prepare_batches(bt_test_data, 10, False)
         bt_test_preds = eval_batches(model, bt_test_batch, 'cuda')
         bt_test_df['model_pred'] = bt_test_preds
-        sub_df = bt_test_df.groupby('user_id').last()
+        if last_one_only:
+            sub_df = bt_test_df.groupby('user_id').last()
+        else:
+            sub_df = bt_test_df
 
-    # check test constraints
+    # Check test constraints.
     if args.test_type == 'reconstruction':
         sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
         sub_df.to_csv('./bt_result_{}.csv'.format(args.test_type))
         print(sub_df['testpass'].describe())
         print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].describe())
         print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].describe())
-        print(new_test_meta)
+
+    elif args.test_type == 'repetition':
+        sub_df['testpass'] = (sub_df['testpoint'] == sub_df['model_pred'].round())
+        sub_df.to_csv('./bt_result_{}.csv'.format(args.test_type))
+        print(sub_df['testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 0, 'testpass'].describe())
+        print(sub_df.loc[sub_df['testpoint'] == 1, 'testpass'].describe())
+
     elif args.test_type == 'add_last':
         user_group_df = sub_df.groupby('orig_user_id')
         user_group_df['testpass'] = False
@@ -209,16 +208,9 @@ if __name__ == "__main__":
         print(user_group_df.loc[user_group_df['is_perturbed'] != 0, 'testpass'].describe())
         print(user_group_df.loc[user_group_df['is_perturbed'] == 1, 'testpass'].describe())
         print(user_group_df.loc[user_group_df['is_perturbed'] == -1, 'testpass'].describe())
-        print(new_test_meta)
+    
     elif args.test_type == 'deletion':
         pass
     elif args.test_type == 'replacement':
         pass
 
-    # else:
-    #     test_data, _ = get_data(test_df, train_split=1.0, randomize=False)
-    #     test_result = torch.Tensor(test_flip_all(model, test_data))
-    #     # print(test_result)
-    #     print(test_result.size())
-    #     print("All-true perturbation result:", test_result[:, 2].sum().item())
-    #     print("All-false perturbation result:", test_result[:, 4].sum().item())
