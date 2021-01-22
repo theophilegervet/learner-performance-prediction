@@ -16,14 +16,15 @@ from bt_case_reconstruction import test_seq_reconstruction
 from bt_case_repetition import test_repeated_feed
 from utils import *
 import pytorch_lightning as pl
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
     parser.add_argument("--dataset", type=str, default="spanish")
     parser.add_argument("--model", type=str, \
-        choices=["lr", "dkt", "sakt", "saint"], default="saint")
-    parser.add_argument("--test_type", type=str, default="reconstruction")
+        choices=["lr", "dkt", "sakt", "saint"], default="dkt")
+    parser.add_argument("--test_type", type=str, default="original")
     parser.add_argument("--load_dir", type=str, default="./save/")
     parser.add_argument("--filename", type=str, default="spanish")
     parser.add_argument("--gpu", type=str, default="0,1")
@@ -59,16 +60,15 @@ if __name__ == "__main__":
         bt_test_df, test_info = test_repeated_feed(test_df, item_or_skill='item')
     elif args.test_type == 'add_last':
         bt_test_df, test_info = df_perturbation(test_df, perturb_add_last_random)
-    elif args.test_type == 'deletion':
-        raise NotImplementedError("Not implemented test_type")
-    elif args.test_type == 'replacement':
-        raise NotImplementedError("Not implemented test_type")
+    elif args.test_type == 'original':
+        bt_test_df = test_df
     else:
         raise NotImplementedError("Not implemented test_type")
 
+
     # 3. FEED TEST DATA.
     # In: bt_test_df
-    # Out: bt_test_df with model prediction.
+    # Out: bt_test_df with 'model_pred' column.
     # TODO: Functionize
     bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
     original_test_df = bt_test_df.copy()
@@ -88,9 +88,10 @@ if __name__ == "__main__":
         if last_one_only:
             bt_test_df = bt_test_df.groupby('user_id').last()
 
+
     # 4. CHECK PASS CONDITION AND RUN CASE-SPECIFIC ANALYSIS.
     # In: bt_test_df
-    # Out: result_df (with testpass column), groupby_key
+    # Out: result_df with 'testpass' column, groupby_key
     # TODO: Functionize in separate bt_case_{}.py files.
     if args.test_type in {'reconstruction', 'repetition'}:
         bt_test_df['testpass'] = (bt_test_df['testpoint'] == bt_test_df['model_pred'].round())
@@ -113,10 +114,10 @@ if __name__ == "__main__":
                     'testpass'] = True
         result_df = user_group_df.loc[user_group_df['is_perturbed'] != 0]
         groupby_key = ['all', 'is_pertubred']
-    elif args.test_type == 'deletion':
-        raise NotImplementedError("Not implemented test_type")
-    elif args.test_type == 'replacement':
-        raise NotImplementedError("Not implemented test_type")
+    elif args.test_type == 'original':
+        result_df = bt_test_df.copy()
+        result_df['testpass'] = (result_df['correct'] == result_df['model_pred'].round())
+        groupby_key = ['all', 'correct']
     else:
         raise NotImplementedError("Not implemented test_type")
 
@@ -128,4 +129,5 @@ if __name__ == "__main__":
         result_dict[group_key] = result_df.groupby(group_key)[eval_col].describe()
     metric_df = pd.concat([y for _, y in result_dict.items()], axis=0, keys=result_dict.keys())
     print(metric_df)
+    print("auc_test = ", roc_auc_score(result_df["correct"], result_df['model_pred']))
     result_df.to_csv(f'./results/{args.dataset}_{args.test_type}_{args.model}.csv')
