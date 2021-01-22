@@ -20,12 +20,12 @@ import pytorch_lightning as pl
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Behavioral Testing")
-    parser.add_argument("--dataset", type=str, default="ednet_small")
+    parser.add_argument("--dataset", type=str, default="spanish")
     parser.add_argument("--model", type=str, \
         choices=["lr", "dkt", "sakt", "saint"], default="saint")
-    parser.add_argument("--test_type", type=str, default="repetition")
+    parser.add_argument("--test_type", type=str, default="reconstruction")
     parser.add_argument("--load_dir", type=str, default="./save/")
-    parser.add_argument("--filename", type=str, default="ednet_small")
+    parser.add_argument("--filename", type=str, default="spanish")
     parser.add_argument("--gpu", type=str, default="0,1")
     parser.add_argument("--diff_threshold", type=float, default=0.05)
     args = parser.parse_args()
@@ -36,18 +36,19 @@ if __name__ == "__main__":
         import pickle
         checkpoint_path = f'./save/{args.model}/' + args.filename + '.ckpt'
         with open(checkpoint_path.replace('.ckpt', '_config.pkl'), 'rb') as file:
-            saint_config = argparse.Namespace(**pickle.load(file))
-        model = SAINT.load_from_checkpoint(checkpoint_path, config=saint_config\
+            model_config = argparse.Namespace(**pickle.load(file))
+        model = SAINT.load_from_checkpoint(checkpoint_path, config=model_config\
             ).to(torch.device("cuda"))
         model.eval()
     else:
         saver = Saver(args.load_dir + f'/{args.model}/', args.filename)
         model = saver.load().to(torch.device("cuda"))
         model.eval()
+        model_config = argparse.Namespace(**{})
 
     test_df = pd.read_csv(
         os.path.join("data", args.dataset, "preprocessed_data_test.csv"), sep="\t"
-    ).loc[:1000]
+    )
 
     # 2. GENERATE TEST DATA.
     last_one_only = False
@@ -68,11 +69,12 @@ if __name__ == "__main__":
     # 3. FEED TEST DATA.
     # In: bt_test_df
     # Out: bt_test_df with model prediction.
+    # TODO: Functionize
     bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
     original_test_df = bt_test_df.copy()
     original_test_df.to_csv(bt_test_path)
     if args.model == 'saint':
-        datamodule = DataModule(saint_config, overwrite_test_df=bt_test_df, last_one_only=last_one_only)
+        datamodule = DataModule(model_config, overwrite_test_df=bt_test_df, last_one_only=last_one_only)
         trainer = pl.Trainer(auto_select_gpus=True, callbacks=[], max_steps=0)
         bt_test_preds = predict_saint(saint_model=model, dataloader=datamodule.test_dataloader())
         if last_one_only:
@@ -86,9 +88,10 @@ if __name__ == "__main__":
         if last_one_only:
             bt_test_df = bt_test_df.groupby('user_id').last()
 
-    # 4. CHECK PASS CONDITION.
+    # 4. CHECK PASS CONDITION AND RUN CASE-SPECIFIC ANALYSIS.
     # In: bt_test_df
-    # Out: result_df, groupby_key
+    # Out: result_df (with testpass column), groupby_key
+    # TODO: Functionize in separate bt_case_{}.py files.
     if args.test_type in {'reconstruction', 'repetition'}:
         bt_test_df['testpass'] = (bt_test_df['testpoint'] == bt_test_df['model_pred'].round())
         groupby_key = ['all', 'testpoint']
@@ -117,7 +120,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError("Not implemented test_type")
 
-    # 5. GET STAT.
+    # 5. GET COMMON TEST CASE STAT.
     result_dict = {}
     eval_col = 'testpass'
     result_df['all'] = 'all'
@@ -125,3 +128,4 @@ if __name__ == "__main__":
         result_dict[group_key] = result_df.groupby(group_key)[eval_col].describe()
     metric_df = pd.concat([y for _, y in result_dict.items()], axis=0, keys=result_dict.keys())
     print(metric_df)
+    result_df.to_csv(f'./results/{args.dataset}_{args.test_type}_{args.model}.csv')
