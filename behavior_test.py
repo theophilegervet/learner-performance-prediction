@@ -11,9 +11,9 @@ from train_saint import SAINT, DataModule, predict_saint
 
 from bt_case_perturbation import (
     gen_perturbation,
-    perturb_insertion_random, test_perturbation,
+    perturb_insertion_random, perturb_delete_random, test_perturbation,
 )
-from bt_case_reconstruction import gen_seq_reconstruction, test_seq_reconstruction, test_simple
+from bt_case_reconstruction import gen_seq_reconstruction, test_simple
 from bt_case_repetition import gen_repeated_feed
 from utils import *
 import pytorch_lightning as pl
@@ -53,7 +53,8 @@ if __name__ == "__main__":
     test_kwargs = {
         'item_or_skill': 'item', 
         'perturb_func': {
-            'insertion': perturb_insertion_random
+            'insertion': perturb_insertion_random,
+            'deletion': perturb_delete_random
         }[args.test_type],
         'insertion_policy': 'middle'
         }
@@ -66,6 +67,7 @@ if __name__ == "__main__":
         'reconstruction': gen_seq_reconstruction,
         'repetition': gen_repeated_feed,
         'insertion': gen_perturbation,
+        'deletion': gen_perturbation,
         'original': lambda x: x
     }
     bt_test_df, test_info = gen_funcs[args.test_type](test_df, **test_kwargs)
@@ -100,6 +102,7 @@ if __name__ == "__main__":
         'reconstruction': test_simple,
         'repetition': test_simple,
         'insertion': test_perturbation,
+        'deletion': test_perturbation,
         'original': lambda x: test_simple(x, testcol='correct')
     }
     result_df, groupby_key = test_funcs[args.test_type](bt_test_df)
