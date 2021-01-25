@@ -64,6 +64,7 @@ if __name__ == "__main__":
         last_one_only = True
     elif args.test_type == 'insertion':
         bt_test_df, test_info = df_perturbation(test_df, perturb_insertion_random, 'middle')
+        last_one_only = True
     elif args.test_type == 'deletion':
         raise NotImplementedError("Not implemented test_type")
     elif args.test_type == 'replacement':
