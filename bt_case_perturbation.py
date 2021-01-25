@@ -35,34 +35,42 @@ def perturb_review_step(orig_df):
 
 
 def perturb_add_last(orig_df, row_index, new_value):
-    new_df = deepcopy(orig_df.iloc[row_index])
-    new_df["correct"] = new_value
+    new_df = deepcopy(orig_df.iloc[[row_index]])
+    new_df.loc[:, "correct"] = new_value
     orig_df = orig_df.append(new_df).reset_index(drop=True)
     return orig_df
 
 
 def perturb_add_last_random(orig_df):
-    orig_df['orig_user_id'] = orig_df['user_id']
-    orig_df['is_perturbed'] = 0
+    orig_df.loc[:, 'orig_user_id'] = orig_df['user_id']
+    orig_df.loc[:, 'is_perturbed'] = 0
     row_index = random.randrange(0, len(orig_df))
     corr_df = perturb_add_last(orig_df, row_index, 1)
-    corr_df['user_id'] = orig_df['user_id'] + "corr"
-    corr_df['is_perturbed'] = 1
+    corr_df.loc[:, 'user_id'] = corr_df['user_id'].astype(str) + "corr"
+    corr_df.loc[:, 'is_perturbed'] = 1
     incorr_df = perturb_add_last(orig_df, row_index, 0)
-    incorr_df['user_id'] = orig_df['user_id'] + "incorr"
-    incorr_df['is_perturbed'] = -1
+    incorr_df.loc[:, 'user_id'] = incorr_df['user_id'].astype(str) + "incorr"
+    incorr_df.loc[:, 'is_perturbed'] = -1
 
     new_df = deepcopy(orig_df.iloc[row_index])
 
-    orig_df = orig_df.append(new_df).reset_index(drop=True)
-    corr_df = corr_df.append(new_df).reset_index(drop=True)
-    incorr_df = incorr_df.append(new_df).reset_index(drop=True)
+    orig_df = orig_df.append(orig_df.iloc[row_index]).reset_index(drop=True)
+    corr_df = corr_df.append(corr_df.iloc[row_index]).reset_index(drop=True)
+    incorr_df = incorr_df.append(incorr_df.iloc[row_index]).reset_index(drop=True)
 
     new_df_list = [orig_df, corr_df, incorr_df]
     return pd.concat(new_df_list, axis=0).reset_index(drop=True)
 
 
 def perturb_delete(orig_df, row_index):
+    orig_df.loc[:, 'deleted_corr'] = orig_df.iloc[row_index]['correct']
+    orig_df = orig_df.iloc[:row_index].append(orig_df.iloc[row_index+1:]).reset_index(drop=True)
+    return orig_df
+
+
+def perturb_delete_random(orig_df):
+    orig_df.loc[:, 'orig_user_id'] = orig_df['user_id']
+    row_index = random.randrange(0, len(orig_df))
     pass
 
 

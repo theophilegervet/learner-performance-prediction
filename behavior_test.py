@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     test_df = pd.read_csv(
         os.path.join("data", args.dataset, "preprocessed_data_test.csv"), sep="\t"
-    ).loc[:1000]
+    ).loc[:]
 
     # 2. GENERATE TEST DATA.
     last_one_only = False
@@ -58,6 +58,7 @@ if __name__ == "__main__":
         bt_test_df, test_info = test_repeated_feed(test_df, item_or_skill='item')
     elif args.test_type == 'add_last':
         bt_test_df, test_info = df_perturbation(test_df, perturb_add_last_random)
+        last_one_only = True
     elif args.test_type == 'deletion':
         raise NotImplementedError("Not implemented test_type")
     elif args.test_type == 'replacement':
@@ -94,22 +95,22 @@ if __name__ == "__main__":
         groupby_key = ['all', 'testpoint']
         result_df = bt_test_df
     elif args.test_type == 'add_last':
+        bt_test_df['testpass'] = False
         user_group_df = bt_test_df.groupby('orig_user_id')
-        user_group_df['testpass'] = False
         for name, group in user_group_df:
             orig_prob = group.loc[group['is_perturbed'] == 0]['model_pred'].item()
             corr_prob = group.loc[group['is_perturbed'] == 1]['model_pred'].item()
             incorr_prob = group.loc[group['is_perturbed'] == -1]['model_pred'].item()
             if corr_prob >= orig_prob - args.diff_threshold:
-                user_group_df.loc[
-                    (user_group_df['orig_user_id'] == name) & (user_group_df['is_perturbed'] == 1),
+                bt_test_df.loc[
+                    (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == 1),
                     'testpass'] = True
             if incorr_prob <= orig_prob + args.diff_threshold:
-                user_group_df.loc[
-                    (user_group_df['orig_user_id'] == name) & (user_group_df['is_perturbed'] == 1),
+                bt_test_df.loc[
+                    (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == -1),
                     'testpass'] = True
-        result_df = user_group_df.loc[user_group_df['is_perturbed'] != 0]
-        groupby_key = ['all', 'is_pertubred']
+        result_df = bt_test_df.loc[bt_test_df['is_perturbed'] != 0]
+        groupby_key = ['all', 'is_perturbed']
     elif args.test_type == 'deletion':
         raise NotImplementedError("Not implemented test_type")
     elif args.test_type == 'replacement':
