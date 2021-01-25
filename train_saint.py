@@ -17,23 +17,24 @@ from torch.optim.lr_scheduler import LambdaLR
 from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.metrics import roc_auc_score
 
-TEST_STRIDE = 100
 DEVICE = 'cuda'
 
 class InteractionDataset(torch.utils.data.Dataset):
-    def __init__(self, uid2sequence, seq_len=100, stride=50, is_test=False, last_only=False):
+    def __init__(self, uid2sequence, seq_len=100, stride=50, \
+        last_max_seq_only=False, last_interaction_only=False):
         self.seq_len = seq_len
         if stride is None:
             self.stride = seq_len // 2
         else:
             self.stride = stride
-        self.is_test = is_test
-        self.last_only = last_only
+        self.last_max_seq_only = last_max_seq_only  # If True, test last max-seq-len interaction only.
+        self.last_interaction_only = last_interaction_only  # If True, test last single interaction only.
+        # TODO: Resolve two variables into a single test-mode variable.
         self.uid2sequence = uid2sequence
         self.sample_list = []
         for uid, seq in tqdm(self.uid2sequence.items()):
             num_inter = len(seq["item_id"])
-            if self.is_test:
+            if self.last_max_seq_only:
                 self.sample_list.append((uid, max(0, num_inter - self.seq_len), num_inter))
             else:
                 start_idx, end_idx = 0, self.seq_len
@@ -67,7 +68,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         else:
             infer_mask = [True] * self.seq_len
 
-        if self.last_only:
+        if self.last_interaction_only:
             infer_mask = [False] * (fragment_len - 1) + [True] + [False] * pad_size
         features["infer_mask"] = [(x and y) for (x, y) in zip(infer_mask, pad_mask)]
 
@@ -145,7 +146,8 @@ class DataModule(pl.LightningDataModule):
             self.val_gen = None
 
         test_data = InteractionDataset(
-            self.data["test"], seq_len=config.seq_len, is_test=True, last_only=last_one_only
+            self.data["test"], seq_len=config.seq_len, \
+                last_max_seq_only=False, last_interaction_only=last_one_only
         )
         self.test_gen = torch.utils.data.DataLoader(
             dataset=test_data,
@@ -466,7 +468,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--eval_steps", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--gpu", type=str, default="0,1")
+    parser.add_argument("--gpu", type=str, default="0,1,2")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--layer_count", type=int, default=2)
     parser.add_argument("--head_count", type=int, default=8)
@@ -476,7 +478,7 @@ if __name__ == "__main__":
     parser.add_argument("--dim_ff", type=int, default=1024)
     parser.add_argument("--seq_len", type=int, default=100)
     parser.add_argument("--dropout_rate", type=float, default=0.1)
-    parser.add_argument("--dataset", type=str, default="ednet_small")
+    parser.add_argument("--dataset", type=str, default="spanish")
     args = parser.parse_args()
 
     # parse gpus

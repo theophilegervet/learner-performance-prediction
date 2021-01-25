@@ -209,7 +209,7 @@ def eval_batches(model, batches, device='cpu'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train DKT.")
-    parser.add_argument("--dataset", type=str, default="ednet_small")
+    parser.add_argument("--dataset", type=str, default="spanish")
     parser.add_argument("--logdir", type=str, default="runs/dkt")
     parser.add_argument("--savedir", type=str, default="save/dkt")
     parser.add_argument("--hid_size", type=int, default=100)
@@ -218,8 +218,9 @@ if __name__ == "__main__":
     parser.add_argument("--drop_prob", type=float, default=0.5)
     parser.add_argument("--batch_size", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-2)
-    parser.add_argument("--num_epochs", type=int, default=10)
+    parser.add_argument("--num_epochs", type=int, default=100)
     parser.add_argument("--seed", type=int, default=0)
+    os.environ['CUDA_VISIBLE_DEVICES'] = "2,3"
     args = parser.parse_args()
 
     set_random_seeds(args.seed)
@@ -283,5 +284,6 @@ if __name__ == "__main__":
         test_df.to_csv(
             f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
         )
-
+    test_df['model_pred'] = test_preds
     print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
+    print("acc_test = ", (test_df['correct'] == test_df['model_pred'].round()).describe())
