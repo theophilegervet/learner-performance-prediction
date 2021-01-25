@@ -3,7 +3,7 @@ import numpy as np
 import random
 
 
-def test_seq_reconstruction(
+def gen_seq_reconstruction(
     data_df, 
     item_or_skill='item',
     min_sample_num=3, 
@@ -58,3 +58,9 @@ def test_seq_reconstruction(
         'num_interaction': new_data.shape[0],
     }
     return new_data, data_meta
+
+
+def test_simple(bt_test_df, testcol='testpoint'):
+    bt_test_df['testpass'] = (bt_test_df[testcol] == bt_test_df['model_pred'].round())
+    groupby_key = ['all', testcol]
+    return bt_test_df, groupby_key

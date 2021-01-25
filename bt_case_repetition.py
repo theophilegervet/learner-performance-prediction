@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 
-def test_repeated_feed(
+def gen_repeated_feed(
     data_df, 
     item_or_skill='item',
     repeat_val_list=[1, 0],

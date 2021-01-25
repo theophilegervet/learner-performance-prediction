@@ -5,16 +5,16 @@ import torch
 from models.model_dkt2 import DKT2
 from models.model_sakt2 import SAKT
 
+import pickle
 from train_dkt2 import get_data, prepare_batches, eval_batches
 from train_saint import SAINT, DataModule, predict_saint
 
 from bt_case_perturbation import (
-    df_perturbation,
-    perturb_add_last_random,
-    perturb_insertion_random,
+    gen_perturbation,
+    perturb_insertion_random, test_perturbation,
 )
-from bt_case_reconstruction import test_seq_reconstruction
-from bt_case_repetition import test_repeated_feed
+from bt_case_reconstruction import gen_seq_reconstruction, test_seq_reconstruction, test_simple
+from bt_case_repetition import gen_repeated_feed
 from utils import *
 import pytorch_lightning as pl
 from sklearn.metrics import roc_auc_score, accuracy_score
@@ -33,9 +33,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-    # 1. LOAD MODEL - SAINT OR {DKT, BESTLR, SAKT}
+    # 1. LOAD DATA + PRE-TRAINED MODEL - {SAINT, DKT, BESTLR, SAKT}
     if args.model == 'saint':
-        import pickle
         checkpoint_path = f'./save/{args.model}/' + args.filename + '.ckpt'
         with open(checkpoint_path.replace('.ckpt', '_config.pkl'), 'rb') as file:
             model_config = argparse.Namespace(**pickle.load(file))
@@ -51,34 +50,32 @@ if __name__ == "__main__":
     test_df = pd.read_csv(
         os.path.join("data", args.dataset, "preprocessed_data_test.csv"), sep="\t"
     )
+    test_kwargs = {
+        'item_or_skill': 'item', 
+        'perturb_func': {
+            'insertion': perturb_insertion_random
+        }[args.test_type],
+        'insertion_policy': 'middle'
+        }
+    last_one_only = {'reconstruction': True, 'repetition': False, \
+        'insertion': False, 'original': False}[args.test_type]
+
 
     # 2. GENERATE TEST DATA.
-    last_one_only = False
-    if args.test_type == 'reconstruction':
-        bt_test_df, test_info = test_seq_reconstruction(test_df, item_or_skill='item')
-        last_one_only = True
-    elif args.test_type == 'repetition':
-        bt_test_df, test_info = test_repeated_feed(test_df, item_or_skill='item')
-    elif args.test_type == 'add_last':
-        bt_test_df, test_info = df_perturbation(test_df, perturb_add_last_random)
-        last_one_only = True
-    elif args.test_type == 'insertion':
-        bt_test_df, test_info = df_perturbation(test_df, perturb_insertion_random, 'middle')
-        last_one_only = True
-    elif args.test_type == 'deletion':
-        raise NotImplementedError("Not implemented test_type")
-    elif args.test_type == 'replacement':
-        raise NotImplementedError("Not implemented test_type")
-    elif args.test_type == 'original':
-        bt_test_df = test_df
-    else:
-        raise NotImplementedError("Not implemented test_type")
+    gen_funcs = {
+        'reconstruction': gen_seq_reconstruction,
+        'repetition': gen_repeated_feed,
+        'insertion': gen_perturbation,
+        'original': lambda x: x
+    }
+    bt_test_df, test_info = gen_funcs[args.test_type](test_df, **test_kwargs)
+        # bt_test_df: generated test dataset for behavioral testing
+        # test_info: any meta information stored w.r.t the test case
 
 
     # 3. FEED TEST DATA.
     # In: bt_test_df
     # Out: bt_test_df with 'model_pred' column.
-    # TODO: Functionize
     bt_test_path = os.path.join("data", args.dataset, "bt_{}.csv".format(args.test_type))
     original_test_df = bt_test_df.copy()
     original_test_df.to_csv(bt_test_path)
@@ -99,43 +96,18 @@ if __name__ == "__main__":
 
 
     # 4. CHECK PASS CONDITION AND RUN CASE-SPECIFIC ANALYSIS.
-    # In: bt_test_df
-    # Out: result_df with 'testpass' column, groupby_key
-    # TODO: Functionize in separate bt_case_{}.py files.
-    if args.test_type in {'reconstruction', 'repetition'}:
-        bt_test_df['testpass'] = (bt_test_df['testpoint'] == bt_test_df['model_pred'].round())
-        groupby_key = ['all', 'testpoint']
-        result_df = bt_test_df
-    elif args.test_type in ['add_last', 'insertion']:
-        bt_test_df['testpass'] = False
-        user_group_df = bt_test_df.groupby('orig_user_id')
-        for name, group in user_group_df:
-            orig_prob = group.loc[group['is_perturbed'] == 0]['model_pred'].item()
-            corr_prob = group.loc[group['is_perturbed'] == 1]['model_pred'].item()
-            incorr_prob = group.loc[group['is_perturbed'] == -1]['model_pred'].item()
-            if corr_prob >= orig_prob - args.diff_threshold:
-                bt_test_df.loc[
-                    (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == 1),
-                    'testpass'] = True
-            if incorr_prob <= orig_prob + args.diff_threshold:
-                bt_test_df.loc[
-                    (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == -1),
-                    'testpass'] = True
+    test_funcs = {
+        'reconstruction': test_simple,
+        'repetition': test_simple,
+        'insertion': test_perturbation,
+        'original': lambda x: test_simple(x, testcol='correct')
+    }
+    result_df, groupby_key = test_funcs[args.test_type](bt_test_df)
+        # result_df: bt_test_df appended with 'testpass' column or any additional test-case-specific info.
+        # groupby_key: list of column names in result_df for 5's mutually exclusive subset-wise analysis.
 
-        result_df = user_group_df.loc[user_group_df['is_perturbed'] != 0]
-        groupby_key = ['all', 'is_perturbed']
-    elif args.test_type == 'original':
-        result_df = bt_test_df.copy()
-        result_df['testpass'] = (result_df['correct'] == result_df['model_pred'].round())
-        groupby_key = ['all', 'correct']
-    elif args.test_type == 'deletion':
-        raise NotImplementedError("Not implemented test_type")
-    elif args.test_type == 'replacement':
-        raise NotImplementedError("Not implemented test_type")
-    else:
-        raise NotImplementedError("Not implemented test_type")
 
-    # 5. GET COMMON TEST CASE STAT.
+    # 5. GET SUMMARY STAT.
     result_dict = {}
     eval_col = 'testpass'
     result_df['all'] = 'all'

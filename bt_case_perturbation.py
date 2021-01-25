@@ -4,7 +4,28 @@ from copy import deepcopy
 import random
 
 
-def df_perturbation(orig_df, perturb_func, **pf_args):
+def test_perturbation(bt_test_df, diff_threshold=0.05):
+    bt_test_df['testpass'] = False
+    user_group_df = bt_test_df.groupby('orig_user_id')
+    for name, group in user_group_df:
+        orig_prob = group.loc[group['is_perturbed'] == 0]['model_pred'].item()
+        corr_prob = group.loc[group['is_perturbed'] == 1]['model_pred'].item()
+        incorr_prob = group.loc[group['is_perturbed'] == -1]['model_pred'].item()
+        if corr_prob >= orig_prob - diff_threshold:
+            bt_test_df.loc[
+                (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == 1),
+                'testpass'] = True
+        if incorr_prob <= orig_prob + diff_threshold:
+            bt_test_df.loc[
+                (bt_test_df['orig_user_id'] == name) & (bt_test_df['is_perturbed'] == -1),
+                'testpass'] = True
+
+    result_df = user_group_df.loc[user_group_df['is_perturbed'] != 0]
+    groupby_key = ['all', 'is_perturbed']
+    return result_df, groupby_key
+
+
+def gen_perturbation(orig_df, perturb_func, **pf_args):
     """
     Generates perturbed pandas dataframe object.
 
