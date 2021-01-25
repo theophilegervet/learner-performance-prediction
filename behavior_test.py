@@ -10,7 +10,8 @@ from train_saint import SAINT, DataModule, predict_saint
 
 from bt_case_perturbation import (
     df_perturbation,
-    perturb_add_last_random
+    perturb_add_last_random,
+    perturb_insertion_random,
 )
 from bt_case_reconstruction import test_seq_reconstruction
 from bt_case_repetition import test_repeated_feed
@@ -61,6 +62,8 @@ if __name__ == "__main__":
     elif args.test_type == 'add_last':
         bt_test_df, test_info = df_perturbation(test_df, perturb_add_last_random)
         last_one_only = True
+    elif args.test_type == 'insertion':
+        bt_test_df, test_info = df_perturbation(test_df, perturb_insertion_random, 'middle')
     elif args.test_type == 'deletion':
         raise NotImplementedError("Not implemented test_type")
     elif args.test_type == 'replacement':
@@ -102,7 +105,7 @@ if __name__ == "__main__":
         bt_test_df['testpass'] = (bt_test_df['testpoint'] == bt_test_df['model_pred'].round())
         groupby_key = ['all', 'testpoint']
         result_df = bt_test_df
-    elif args.test_type == 'add_last':
+    elif args.test_type in ['add_last', 'insertion']:
         bt_test_df['testpass'] = False
         user_group_df = bt_test_df.groupby('orig_user_id')
         for name, group in user_group_df:
@@ -119,7 +122,7 @@ if __name__ == "__main__":
                     'testpass'] = True
 
         result_df = user_group_df.loc[user_group_df['is_perturbed'] != 0]
-        groupby_key = ['all', 'is_pertubred']
+        groupby_key = ['all', 'is_perturbed']
     elif args.test_type == 'original':
         result_df = bt_test_df.copy()
         result_df['testpass'] = (result_df['correct'] == result_df['model_pred'].round())

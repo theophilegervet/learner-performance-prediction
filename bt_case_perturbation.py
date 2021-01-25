@@ -52,11 +52,40 @@ def perturb_add_last_random(orig_df):
     incorr_df.loc[:, 'user_id'] = incorr_df['user_id'].astype(str) + "incorr"
     incorr_df.loc[:, 'is_perturbed'] = -1
 
-    new_df = deepcopy(orig_df.iloc[row_index])
-
     orig_df = orig_df.append(orig_df.iloc[row_index]).reset_index(drop=True)
     corr_df = corr_df.append(corr_df.iloc[row_index]).reset_index(drop=True)
     incorr_df = incorr_df.append(incorr_df.iloc[row_index]).reset_index(drop=True)
+
+    new_df_list = [orig_df, corr_df, incorr_df]
+    return pd.concat(new_df_list, axis=0).reset_index(drop=True)
+
+
+def perturb_insertion(orig_df, copy_idx, insert_idx, corr_value):
+    new_df = deepcopy(orig_df.iloc[[copy_idx]])
+    new_df.loc[:, "correct"] = corr_value
+    orig_df = orig_df.iloc[:insert_idx].append(new_df)\
+        .append(orig_df.iloc[insert_idx:]).reset_index(drop=True)
+    return orig_df
+
+
+def perturb_insertion_random(orig_df, insert_policy=None):
+    orig_df.loc[:, 'orig_user_id'] = orig_df['user_id']
+    orig_df.loc[:, 'is_perturbed'] = 0
+    copy_idx = random.randrange(0, len(orig_df))
+    if insert_policy == "first":
+        insert_idx = 0
+    elif insert_policy == "middle":
+        insert_idx = len(orig_df) // 2
+    elif insert_policy == "last":
+        insert_idx = len(orig_df) - 1
+    else:
+        insert_idx = random.randrange(0, len(orig_df))
+    corr_df = perturb_insertion(orig_df, copy_idx, insert_idx, 1)
+    corr_df.loc[:, 'user_id'] = corr_df['user_id'].astype(str) + "_corr"
+    corr_df.loc[:, 'is_perturbed'] = 1
+    incorr_df = perturb_insertion(orig_df, copy_idx, insert_idx, 0)
+    incorr_df.loc[:, 'user_id'] = incorr_df['user_id'].astype(str) + "_incorr"
+    incorr_df.loc[:, 'is_perturbed'] = -1
 
     new_df_list = [orig_df, corr_df, incorr_df]
     return pd.concat(new_df_list, axis=0).reset_index(drop=True)
