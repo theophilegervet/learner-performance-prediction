@@ -1,4 +1,6 @@
 import argparse
+from datetime import datetime
+
 import pandas as pd
 from random import shuffle
 from sklearn.metrics import roc_auc_score, accuracy_score
@@ -228,7 +230,7 @@ def train(
         # Save model
         average_metrics = metrics.average()
         logger.log_scalars(average_metrics, step)
-        stop = saver.save(average_metrics["auc/val"], model)
+        stop = saver.save(average_metrics["auc/val"], model, epoch)
         if stop:
             break
 
@@ -274,6 +276,13 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument("--num_epochs", type=int, default=300)
+    parser.add_argument(
+        "--log_prediction",
+        action="store_true",
+        help="If True, log the predictions of the model as an additional"
+             "column on `preprocessed_data_test.csv`",
+        default=False
+    )
     args = parser.parse_args()
 
     assert args.item_in or args.skill_in  # Use at least one of skills or items as input
@@ -347,6 +356,9 @@ if __name__ == "__main__":
             print(f"Batch does not fit on gpu, reducing size to {args.batch_size}")
 
     logger.close()
+    best_val_auc = saver.score_max
+    best_epoch = saver.best_epoch
+    print(f"best auc_val = {best_val_auc}")
 
     model = saver.load()
     test_data, _ = get_data(
@@ -377,9 +389,45 @@ if __name__ == "__main__":
             test_preds = np.concatenate([test_preds, preds])
 
     # Write predictions to csv
-    test_df["DKT1"] = test_preds
-    test_df.to_csv(
-        f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
-    )
+    if args.log_prediction:
+        test_df["DKT1"] = test_preds
+        test_df.to_csv(
+            f"data/{args.dataset}/preprocessed_data_test.csv", sep="\t", index=False
+        )
 
-    print("auc_test = ", roc_auc_score(test_df["correct"], test_preds))
+    test_auc = roc_auc_score(test_df["correct"], test_preds)
+    print("auc_test = ", test_auc)
+
+    # log the experiment results with configs
+    result_path = f"results/dkt1_{args.dataset}.csv"
+    column_names = [
+        "experiment_time",
+        "hid_size",
+        "num_hid_layers",
+        "drop_prob",
+        "batch_size",
+        "lr",
+        "best_val_auc",
+        "best_epoch",
+        "test_auc",
+    ]
+    if not os.path.exists(result_path):
+        # initialize result dataframe
+        df = pd.DataFrame(columns=column_names)
+        df.to_csv(result_path, index=False, header=True)
+
+    base_df = pd.read_csv(result_path)
+    current_time = datetime.now()
+    result_df = pd.DataFrame.from_dict([{
+        "experiment_time": current_time,
+        "hid_size": args.hid_size,
+        "num_hid_layers": args.num_hid_layers,
+        "drop_prob": args.drop_prob,
+        "batch_size": args.batch_size,
+        "lr": args.lr,
+        "best_val_auc": best_val_auc,
+        "best_epoch": best_epoch,
+        "test_auc": test_auc,
+    }])
+    base_df = base_df.append(result_df)
+    base_df.to_csv(result_path, index=False, header=True)
