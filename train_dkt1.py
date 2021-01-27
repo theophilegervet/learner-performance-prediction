@@ -235,6 +235,14 @@ def train(
             break
 
 
+def print_args(args):
+    """Print CLI arguments in a pretty form"""
+    print("=" * 10 + " Experiment arguments " + "=" * 10)
+    for arg in vars(args):
+        print(f"{arg}:\t\t{getattr(args, arg)}")
+    print("=" * 42)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train DKT1.")
     parser.add_argument("--dataset", type=str, default="assistments17")
@@ -325,6 +333,7 @@ if __name__ == "__main__":
     ).cuda()
     optimizer = Adam(model.parameters(), lr=args.lr)
 
+    print_args(args)
     # Reduce batch size until it fits on GPU
     while True:
         try:
