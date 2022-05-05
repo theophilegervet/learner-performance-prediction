@@ -1,8 +1,12 @@
+# Learner Performance Prediction
+
 Simple and performant implementations of learner performance prediction algorithms:
 - [Performance Factors Analysis (PFA)](http://pact.cs.cmu.edu/koedinger/pubs/AIED%202009%20final%20Pavlik%20Cen%20Keodinger%20corrected.pdf)
 - [DAS3H](https://arxiv.org/pdf/1905.06873.pdf)
 - [Deep Knowledge Tracing (DKT)](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
 - [Self-Attentive Knowledge Tracing (SAKT)](https://arxiv.org/pdf/1907.06837.pdf)
+
+If you use this code for your research, please cite our JEDM 2020 paper [When is Deep Learning the Best Approach to Knowledge Tracing](https://jedm.educationaldatamining.org/index.php/JEDM/article/view/451) :)
 
 ## Setup
 
