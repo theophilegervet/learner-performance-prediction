@@ -6,8 +6,6 @@ Simple and performant implementations of learner performance prediction algorith
 - [Deep Knowledge Tracing (DKT)](https://stanford.edu/~cpiech/bio/papers/deepKnowledgeTracing.pdf)
 - [Self-Attentive Knowledge Tracing (SAKT)](https://arxiv.org/pdf/1907.06837.pdf)
 
-If you use this code for your research, please cite our JEDM 2020 paper [When is Deep Learning the Best Approach to Knowledge Tracing](https://jedm.educationaldatamining.org/index.php/JEDM/article/view/451) :)
-
 ## Setup
 
 Create a new conda environment, install [PyTorch](https://pytorch.org) and the remaining requirements:
